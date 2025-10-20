@@ -5,7 +5,6 @@ import TelemetryTab from './TelemetryTab';
 function InfoTabs() {
   // Dummy state for active tab (will make it functional later)
   const [activeTab, setActiveTab] = React.useState('Status');
-
   const tabs = ['Status', 'Telemetry', 'Mission', 'Sensor Feed', 'Environmental Data'];
 
   return (
