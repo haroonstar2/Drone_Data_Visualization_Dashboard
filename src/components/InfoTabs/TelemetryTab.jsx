@@ -1,6 +1,7 @@
 import {useDroneStore} from '../../store';
 
 function TelemetryTab() {
+    // Subscribe to the Zustrand store
     const telemetry = useDroneStore((state) => state.telemetry);
 
     return (

@@ -15,15 +15,32 @@ export const useDroneStore = create((set) => ({
         mode: 'IDLE',
         health: 'UNKNOWN'
     },
+    settings: {
+        system: {units: "metric", mapDisplay: "satellite"},
+        drone: {rthAltitude: 100, geofenceEnabled: true}
+    },
     missionLogs: [],
 
-    updateTelemetry: (newTelemetryData) => set({
-        telemetry: newTelemetryData
-    }),
+    updateTelemetry: (newTelemetryData) => set((state) => ({
+        telemetry: {
+            ...state.telemetry,
+            ...newTelemetryData
+        }
+    })),
 
-    updateStatus: (newStatusData) => set({
-        droneStatus: newStatusData
-    }),
+    updateStatus: (newStatusData) => set((state) => ({
+        droneStatus: {
+            ...state.droneStatus,
+            ...newStatusData
+        }
+    })),
+
+    updateSettings: (newSettings) => set((state) => ({
+        settings: {
+            ...state.settings,
+            ...newSettings
+        }
+    })),
 
     addMissionLog: (newMissionLog) => set((state) => ({
         missionLogs: [newMissionLog, ...state.missionLogs]

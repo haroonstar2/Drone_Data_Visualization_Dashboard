@@ -1,5 +1,4 @@
 import './ControlButtons.css';
-
 // Import the mock API service
 import { sendCommand } from '../../services/MockAPI';
 
@@ -8,7 +7,7 @@ function ControlButtons() {
     console.log(`Attempting to send command: ${commandName}`);
     try {
       const response = await sendCommand(commandName);
-      console.log(`Mock API response for ${commandName}:`, response);
+      console.log(`[Mock API] response for ${commandName}:`, response);
       alert(response.message); // Simple feedback
     } catch (error) {
       console.error(`Error sending command ${commandName}:`, error);
