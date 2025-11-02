@@ -2,9 +2,9 @@ import './App.css';
 import TopBar from './components/TopBar'; 
 import SidePanel from './components/SidePanel'; 
 import MainContent from './components/MainContent'; 
-import Settings from './components/TopBar/Settings';
-import Plans from './components/TopBar/Plans';
-import PastLogs from './components/TopBar/PastLogs';
+import Settings from './components/Settings'
+import FlightPlanModal from './components/FlightPlanModal';
+// import PastLogs from './components/TopBar/PastLogs';
 import { startTelemetrySimulation } from './services/MockAPI';
 import { useEffect, useState } from 'react';
 import { useDroneStore } from './store';
@@ -15,7 +15,7 @@ function App() {
   // Booleans to display the top bar windows
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isPlanOpen, setIsPlanOpen] = useState(false);
-  const [isLogsOpen, setIsLogsOpen] = useState(false);
+  // const [isLogsOpen, setIsLogsOpen] = useState(false);
 
   // Used to initially fetch data on start up
   const setGlobalSettings = useDroneStore((state) => state.updateSettings)
@@ -46,7 +46,7 @@ function App() {
       <TopBar 
       onSettingsClick={() => setIsSettingsOpen(true)}
       onPlanClick={() => setIsPlanOpen(true)}
-      onLogsClick={() => setIsLogsOpen(true)}
+      // onLogsClick={() => setIsLogsOpen(true)}
       />
 
       <div className="main-area"> {/* This will hold SidePanel and MainContent */}
@@ -59,14 +59,14 @@ function App() {
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
       />
-      <Plans 
+      <FlightPlanModal
         isOpen={isPlanOpen}
         onClose={() => setIsPlanOpen(false)}
       />
-      <PastLogs 
+      {/* <PastLogs 
         isOpen={isLogsOpen}
         onClose={() => setIsLogsOpen(false)}
-      />
+      /> */}
     </div>
   );
 }

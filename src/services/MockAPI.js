@@ -63,13 +63,77 @@ export const saveSettings = (newSettings) => {
   });
 };
 
-// Fake Plan request
-export const getPlan = () => {
-  console.log("[MOCK API]: Getting drone plan");
-  return (
-    <div>Yo</div>
-  );
+// Fake request for all plans. Each plan has a unique Id to identify and request it
+export const getPlanList = () => {
+  console.log("[MOCK API]: Fetching flight plan list...");
   
+  console.log("[MOCK API]: Done fetching flight plan list");
+  return new Promise((resolve) => {
+
+    setTimeout(() => {
+
+      resolve ({
+        type: "FLIGHT_PLAN_LIST",
+        status: "success",
+        timestamp: new Date().toISOString(),
+        data: {
+          // Array of all plans 
+          plans: [
+            {
+              id: "fp_123454",
+              name: "Field Survery Alpha 1",
+              description: "200ft alititude grid pattern",
+              waypointCount: 3,
+              lastModified: new Date().toISOString()
+            },
+            {
+              id: "fp_123456",
+              name: "Field Survery Alpha 2",
+              description: "200ft alititude grid pattern",
+              waypointCount: 3,
+              lastModified: new Date().toISOString()
+            },
+            {
+              id: "fp_123457",
+              name: "Field Survery Alpha 3",
+              description: "200ft alititude grid pattern",
+              waypointCount: 3,
+              lastModified: new Date().toISOString()
+            }
+            // More plans like this one
+          ]
+        }
+      });
+    }, 1000);
+  });
+};
+
+// Request flight plan details. 
+export const getPlanDetails = (planId) => {
+  console.log(`[MOCK API] Fetching details for plan: ${planId}`);
+
+  console.log(`[MOCK API] Done fetching details for plan: ${planId}`);
+  return new Promise((resolve) => {
+
+    setTimeout(() => {
+      resolve({
+        type: "FLIGHT_PLAN_DATA",
+        status: "success",
+        timestamp: new Date().toISOString(),
+        data: {
+          id: planId,
+          name: "Field Survey Alpha (retrieved)",
+          description: "200ft alititude grid pattern",
+          lastModified: new Date().toISOString(),
+          waypoints: [
+            { order: 1, latitude: 36.7468, longitude: -119.7726, altitude: 60, action: 'take_photo' },
+            { order: 2, latitude: 36.7470, longitude: -119.7726, altitude: 60, action: 'take_photo' },
+            { order: 3, latitude: 36.7470, longitude: -119.7720, altitude: 60, action: 'hover_5_sec' }
+          ]
+        }
+      });
+    },1000);
+  });
 };
 
 // Live simulation to send mock data to the info tabs

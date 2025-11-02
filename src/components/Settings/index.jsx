@@ -40,11 +40,9 @@ function Settings({isOpen, onClose}) {
                 [settingsName]: type === "checkbox" ? checked : value
             }
         }));
-
     };
 
     const handleSave = async () => {
-        
         try {
             // Save the local settings to the mock backend and wait for a response
             const response = await saveSettings(localSettings);   
@@ -75,7 +73,6 @@ function Settings({isOpen, onClose}) {
             <div className="settings-modal" onClick={e => e.stopPropagation()}>
 
                 <h2>Settings</h2>
-
                 <div className="settings-form">
                     {/* System Settings */}
                     <fieldset>
@@ -108,15 +105,10 @@ function Settings({isOpen, onClose}) {
                     </fieldset>
                 </div>
 
-
-
-
                 <div className="settings-action">
                     <button onClick={onClose} className="btn-cancel">Cancel</button>
                     <button onClick={handleSave} className="btn-save">Save</button>
                 </div>
-
-
             </div>
         </div>
     );

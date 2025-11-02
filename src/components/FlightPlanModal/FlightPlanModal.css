@@ -1,0 +1,88 @@
+/* src/components/FlightPlanModal/FlightPlanModal.css */
+.plan-overlay {
+  position: fixed; /* Sit on top of everything */
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.6); /* Dark semi-transparent background */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000; /* Be on top */
+}
+
+.plan-modal {
+  background-color: #ECEFF1; /* Light grey */
+  color: #212121;
+  padding: 20px 30px;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.plan-modal h2 {
+  margin-top: 0;
+  border-bottom: 2px solid #546E7A;
+  padding-bottom: 10px;
+}
+
+.plan-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.plan-actions button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.plan-actions .btn-cancel {
+  background-color: #B0BEC5;
+  color: #212121;
+}
+
+.plan-actions .btn-save {
+  background-color: #4CAF50; /* Green */
+  color: white;
+}
+
+/* Generic button styles to keep things consistent */
+.btn {
+  padding: 10px 16px;
+  border-radius: 5px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+/* Cancel / secondary button */
+.btn-cancel {
+  background-color: #B0BEC5;
+  color: #212121;
+}
+.btn-cancel:hover,
+.btn-cancel:focus {
+  background-color: #9aa7ad;
+}
+
+/* Activate button: use a subtle primary accent (blue) */
+.btn-activate {
+  background-color: #1976D2; /* Blue */
+  color: white;
+}
+.btn-activate:hover,
+.btn-activate:focus {
+  background-color: #1565C0;
+}
+
+/* Make sure .plan-actions rules still apply but our specific classes win as expected */
+.plan-actions .btn {
+  padding: 10px 20px;
+}
