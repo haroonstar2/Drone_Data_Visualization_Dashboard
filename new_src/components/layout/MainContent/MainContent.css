@@ -1,7 +1,0 @@
-.main-content {
-  flex-grow: 1;
-  background-color: #263238;
-  position: relative; 
-  display: flex;
-  flex-direction: column;
-}
