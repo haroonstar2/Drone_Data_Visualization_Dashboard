@@ -1,30 +1,30 @@
-import './App.css'; 
-import TopBar from './components/TopBar'; 
-import SidePanel from './components/SidePanel'; 
-import MainContent from './components/MainContent'; 
-import Settings from './components/Settings'
-import FlightPlanModal from './components/FlightPlanModal';
-// import PastLogs from './components/TopBar/PastLogs';
-import { startTelemetrySimulation } from './services/MockAPI';
+import './App.css';
+import TopBar from './components/TopBar';
+import SidePanel from './components/SidePanel';
+import MainContent from './components/MainContent';
+import Settings from './components/Settings';
+import ListDetailModal from './components/ListDetailModal';
+import { FlightPlanListView, FlightPlanDetailView } from './components/FlightPlanModal';
+import { MissionListItem, HistoryLogDetailsView } from './components/HistoryModal';
+import { startSimulation, getSettings, getPlanList, getPlanDetails, getMissionHistory, getMissionLogs } from './services/MockAPI';
 import { useEffect, useState } from 'react';
 import { useDroneStore } from './store';
-import { getSettings } from './services/MockAPI';
 
 
 function App() {
   // Booleans to display the top bar windows
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isPlanOpen, setIsPlanOpen] = useState(false);
-  // const [isLogsOpen, setIsLogsOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   // Used to initially fetch data on start up
   const setGlobalSettings = useDroneStore((state) => state.updateSettings)
 
-  // Start the telemetry simulation. Telemetry is constantly updated
+  // Start the telemetry simulation and fetch initial settings
   useEffect(() => {
     console.log("Starting telemetry simulation...");
-    const id = startTelemetrySimulation();
-    
+    const id = startSimulation();
+
     const fetchInitialSettings = async () => {
       console.log("Fetching Initial Settings");
       const response = await getSettings();
@@ -32,12 +32,13 @@ function App() {
       if (response.status === "success") {
         setGlobalSettings(response.data);
       } else {
-        alert("Error fetching initial settings")
+        alert("Error fetching initial settings");
       }
     };
     fetchInitialSettings();
 
-  }, [setGlobalSettings])
+    return () => clearInterval(id);
+  }, [setGlobalSettings]);
 
 
   return (
@@ -46,7 +47,7 @@ function App() {
       <TopBar 
       onSettingsClick={() => setIsSettingsOpen(true)}
       onPlanClick={() => setIsPlanOpen(true)}
-      // onLogsClick={() => setIsLogsOpen(true)}
+      onLogsClick={() => setIsHistoryOpen(true)}
       />
 
       <div className="main-area"> {/* This will hold SidePanel and MainContent */}
@@ -59,9 +60,27 @@ function App() {
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
       />
-      <FlightPlanModal
+
+      {/* Flight Plan Modal (using the generic ListDetailModal) */}
+      <ListDetailModal
         isOpen={isPlanOpen}
         onClose={() => setIsPlanOpen(false)}
+        title="Flight Plans"
+        fetchList={getPlanList}
+        fetchDetails={getPlanDetails}
+        ListItemComponent={FlightPlanListView}
+        DetailsComponent={FlightPlanDetailView}
+      />
+
+      {/* History Modal (using the same generic component) */}
+      <ListDetailModal
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
+        title="Mission History"
+        fetchList={getMissionHistory}
+        fetchDetails={getMissionLogs}
+        ListItemComponent={MissionListItem}
+        DetailsComponent={HistoryLogDetailsView}
       />
       {/* <PastLogs 
         isOpen={isLogsOpen}

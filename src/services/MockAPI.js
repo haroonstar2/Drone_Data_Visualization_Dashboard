@@ -27,9 +27,7 @@ export const getSettings = () => {
   console.log("[MOCK API] Fetching settings...");
   // Return fake, hardcoded settings data
   return new Promise((resolve) => {
-
     setTimeout(() => {
-
       resolve({
         type: "SETTINGS_DATA",
         status: "success",
@@ -69,16 +67,14 @@ export const getPlanList = () => {
   
   console.log("[MOCK API]: Done fetching flight plan list");
   return new Promise((resolve) => {
-
     setTimeout(() => {
-
       resolve ({
         type: "FLIGHT_PLAN_LIST",
         status: "success",
         timestamp: new Date().toISOString(),
         data: {
           // Array of all plans 
-          plans: [
+          items: [
             {
               id: "fp_123454",
               name: "Field Survery Alpha 1",
@@ -110,11 +106,10 @@ export const getPlanList = () => {
 
 // Request flight plan details. 
 export const getPlanDetails = (planId) => {
-  console.log(`[MOCK API] Fetching details for plan: ${planId}`);
+  console.log(`[MOCK API]: Fetching details for plan: ${planId}`);
 
-  console.log(`[MOCK API] Done fetching details for plan: ${planId}`);
+  console.log(`[MOCK API]: Done fetching details for plan: ${planId}`);
   return new Promise((resolve) => {
-
     setTimeout(() => {
       resolve({
         type: "FLIGHT_PLAN_DATA",
@@ -136,8 +131,57 @@ export const getPlanDetails = (planId) => {
   });
 };
 
+// Get log history
+export const getMissionHistory = () => {
+  console.log("[MOCK API]: Fetching mission history...");
+
+  console.log("[MOCK API]: Finished fetching mission history");
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve({
+        type: 'MISSION_LIST',
+        status: 'success',
+        data: {
+          items: [
+            { id: 'm_001', name: 'Test Flight 1', date: '2025-09-20', duration_min: 15, logCount: 45 },
+            { id: 'm_002', name: 'Mapping Run A', date: '2025-09-22', duration_min: 45, logCount: 152 },
+            { id: 'm_003', name: 'Perimeter Check', date: '2025-09-24', duration_min: 22, logCount: 78 }
+          ]
+        }
+      });
+    }, 1000);
+  });
+};
+
+export const getMissionLogs = (missionId) => {
+  console.log(`[MOCK API]: Requesting mission: ${missionId}`);
+
+  const fakeLogs = [
+    { timestamp: '2025-09-20T10:00:01Z', level: 'INFO', message: `Mission ${missionId} started.` },
+    { timestamp: '2025-09-20T10:00:05Z', level: 'INFO', message: 'Takeoff complete.' },
+    { timestamp: '2025-09-20T10:07:22Z', level: 'INFO', message: 'Waypoint 1 reached.' },
+    { timestamp: '2025-09-20T10:15:00Z', level: 'WARN', message: 'Low battery, initiating RTH.' },
+    { timestamp: '2025-09-20T10:17:00Z', level: 'INFO', message: 'Landing complete.' }
+  ];
+
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve({
+        type: 'HISTORICAL_LOGS',
+        status: 'success',
+        data: {
+          id: missionId,
+          logCount: fakeLogs.length,
+          logs: fakeLogs
+        }
+      });
+    },1000);
+  });
+};
+window.getMissionLogs = getMissionLogs;
+
 // Live simulation to send mock data to the info tabs
-export const startTelemetrySimulation = () => setInterval(() => {
+export const startSimulation = () => setInterval(() => {
   console.log("[MOCK API] Receiving fake telemetry...");
   // Return fake, telemetry
   const telemetry = {...useDroneStore.getState().telemetry};
@@ -177,9 +221,12 @@ export const startTelemetrySimulation = () => setInterval(() => {
   // Send a log message ocassionally
   if(Math.random() < 0.5) {
     const log = {
+      type: "MISSION_LOG",
       timestamp: new Date().toISOString(),
-      level: "INFO",
-      message: `Drone performing routine check at ${telemetry.altitude.toFixed(1)}m`
+      data: {
+        level: "INFO",
+        message: `Drone performing routine check at ${telemetry.altitude.toFixed(1)}m`
+      }
     };
     console.log("[MOCK API] Pushing new mission log");
     useDroneStore.getState().addMissionLog(log);
