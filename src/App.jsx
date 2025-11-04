@@ -1,11 +1,11 @@
 import './App.css';
-import TopBar from './components/layout/TopBar';
-import SidePanel from './components/layout/SidePanel';
-import MainContent from './components/layout/MainContent';
+import TopBar from './components/_layout/TopBar';
+import SidePanel from './components/_layout/SidePanel';
+import MainContent from './components/_layout/MainContent';
 import Settings from './components/Settings';
-import ListDetailModal from './components/common/ListDetailModal';
-import { FlightPlanListView, FlightPlanDetailView } from './components/common/views/FlightPlanModal';
-import { MissionListItem, HistoryLogDetailsView } from './components/common/views/HistoryModal';
+import ListDetailModal from './components/_common/ListDetailModal';
+import { FlightPlanListView, FlightPlanDetailView } from './components/_common/views/FlightPlanModal';
+import { MissionListItem, HistoryLogDetailsView } from './components/_common/views/HistoryModal';
 import { startSimulation, getSettings, getPlanList, getPlanDetails, getMissionHistory, getMissionLogs } from './services/MockAPI';
 import { useEffect, useState } from 'react';
 import { useDroneStore } from './store';
