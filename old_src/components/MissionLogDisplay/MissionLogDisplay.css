@@ -1,0 +1,8 @@
+.mission-log-display {
+  background-color: #80CBC4; 
+  padding: 15px;
+  margin: 10px; 
+  flex-grow: 1; 
+  overflow-y: auto; 
+  color: #212121;
+}

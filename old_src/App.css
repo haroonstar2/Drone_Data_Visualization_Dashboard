@@ -1,0 +1,12 @@
+.dashboard-layout {
+  display: flex;
+  flex-direction: column; /* TopBar on top, main-area below */
+  height: 100vh; 
+  width: 100vw;
+}
+
+.main-area {
+  display: flex; /* SidePanel on left, MainContent on right */
+  flex-grow: 1; 
+  background-color: #333; /* A dark color for visibility */
+}

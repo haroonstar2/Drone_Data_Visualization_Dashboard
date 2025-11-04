@@ -1,0 +1,36 @@
+.map-view {
+  flex-grow: 1; 
+  background-color: #455A64; 
+  color: #CFD8DC;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative; 
+}
+
+.map-overlay {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background-color: rgba(0,0,0,0.5);
+  padding: 10px;
+  border-radius: 5px;
+  color: white;
+  text-align: center;
+}
+
+.mini-map {
+  position: absolute;
+  bottom: 20px; 
+  left: 20px;
+  width: 150px; 
+  height: 150px;
+  border-radius: 50%; 
+  background-color: #4CAF50;
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 0.9em;
+  text-align: center;
+}
