@@ -64,17 +64,11 @@ function ListDetailModal({
                 {view === 'detail' && (
                     <div className="details">
                         <button onClick={() => setView('list')} className="btn btn-cancel">Back to list</button>
-                        <DetailsComponent details={selected} />
+                        <DetailsComponent details={selected} onClose={onClose}/>
                     </div>
                 )}
 
                 <div className="plan-actions">
-                    {view === 'detail' && selected && (
-                        <>
-                            <button className="btn btn-save">Save Changes</button>
-                            <button className="btn btn-activate">Activate</button>
-                        </>
-                    )}
                     <button onClick={onClose} className="btn btn-cancel">Close</button>
                 </div>
             </div>

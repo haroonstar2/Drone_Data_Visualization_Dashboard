@@ -1,4 +1,5 @@
 import './App.css';
+import 'leaflet/dist/leaflet.css';
 import TopBar from './components/_layout/TopBar';
 import SidePanel from './components/_layout/SidePanel';
 import MainContent from './components/_layout/MainContent';

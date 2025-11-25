@@ -178,13 +178,14 @@ export const getMissionLogs = (missionId) => {
     },1000);
   });
 };
-window.getMissionLogs = getMissionLogs;
 
 // Live simulation to send mock data to the info tabs
 export const startSimulation = () => setInterval(() => {
   console.log("[MOCK API] Receiving fake telemetry...");
   // Return fake, telemetry
   const telemetry = {...useDroneStore.getState().telemetry};
+  const shouldStoreLog = useDroneStore.getState().settings.system.storeLog;
+  const env = useDroneStore.getState().environment; // Get current state
 
   // Loop through each item and modify it slightly
   for(let key in telemetry) {
@@ -216,16 +217,19 @@ export const startSimulation = () => setInterval(() => {
     }
   }
   console.log(telemetry)
-  useDroneStore.getState().updateTelemetry(telemetry);
-
+  
   // Send a log message ocassionally
-  if(Math.random() < 0.5) {
+  if(shouldStoreLog && Math.random() < 0.5) {
+
+    const levels = ["INFO", "WARN", ];
+    const level = levels[Math.floor(Math.random() * levels.length)];
+
     const log = {
       type: "MISSION_LOG",
       timestamp: new Date().toISOString(),
       data: {
-        level: "INFO",
-        message: `Drone performing routine check at ${telemetry.altitude.toFixed(1)}m`
+        level: level,
+        message: `System Check: ${level == "WARN" ? "Issue Detected" : "Parameters Normal"}`
       }
     };
     console.log("[MOCK API] Pushing new mission log");
@@ -233,15 +237,28 @@ export const startSimulation = () => setInterval(() => {
   }
 
   // Update the status occasionally
-  if(Math.random() < 0.1) {
+  if(Math.random() < 0.8) {
     const newStatus = {
-      armed: true,
-      mode: "MISSION",
-      health: "OK"
+      armed: `${Math.random() < 0.5 ? true : false}`,
+      mode: `${Math.random() < 0.5 ? "Mission" : "Idle"}`,
+      health: `${Math.random() < 0.5 ? "OK" : "Error"}`
     };
-    console.log("[MOCK API] Pushing new status update");
     useDroneStore.getState().updateStatus(newStatus);
   }
-
-
+  
+  const newEnv = {
+    windSpeed: Math.max(0, env.windSpeed + (Math.random() - 0.5) * 0.2),
+    windDirection: (env.windDirection + (Math.random() - 0.5) * 3) % 360,
+    temperature: env.temperature + (Math.random() - 0.5) * 0.1,
+  };
+  
+  // Wrap wind direction
+  if (newEnv.windDirection < 0) {
+    newEnv.windDirection += 360;
+  }
+  
+  console.log("[MOCK API] Pushing new status update");
+  
+  useDroneStore.getState().updateTelemetry(telemetry);
+  useDroneStore.getState().updateEnvironment(newEnv);
 }, 10000);

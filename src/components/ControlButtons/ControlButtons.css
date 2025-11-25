@@ -3,7 +3,7 @@
   justify-content: flex-end; 
   align-items: center;
   padding: 15px;
-  background-color: #37474F; 
+  background-color: transparent;
   gap: 10px; 
   position: sticky; 
   bottom: 0;
@@ -36,4 +36,28 @@
 
 .home-button:hover {
   background-color: #FFB300 !important;
+}
+
+.control-buttons button.active {
+  background-color: #FFC107; 
+  color: #212121; 
+  box-shadow: 0 0 10px 2px #FFC107;
+}
+
+.map-view.crosshair-cursor {
+  cursor: crosshair;
+}
+
+.map-prompt {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(255, 193, 7, 0.9);
+  color: #212121;
+  padding: 10px 20px;
+  border-radius: 5px;
+  font-weight: bold;
+  z-index: 10;
+  pointer-events: none; 
 }

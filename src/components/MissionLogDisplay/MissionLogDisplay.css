@@ -1,8 +1,41 @@
+/* src/components/MissionLogDisplay/MissionLogDisplay.css */
 .mission-log-display {
-  background-color: #80CBC4; 
-  padding: 15px;
-  margin: 10px; 
+  background-color: #263238; /* Dark background */
+  color: #ECEFF1;
+  padding: 10px;
+  margin: 10px;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* Handle scroll inside log-list */
+
+  display: flex;
+  flex-direction: column;
   flex-grow: 1; 
-  overflow-y: auto; 
-  color: #212121;
+  
+  min-height: 0; 
+  overflow: hidden; 
+
+}
+
+.log-list {
+  overflow-y: auto;
+  flex-grow: 1;
+  font-family: monospace;
+  font-size: 0.85em;
+}
+
+.log-entry {
+  margin-bottom: 4px;
+  border-bottom: 1px solid #37474F;
+  padding-bottom: 2px;
+}
+
+.log-info { color: #81C784; } /* Greenish */
+.log-warn { color: #FFB74D; } /* Orange */
+.log-error { color: #E57373; } /* Red */
+
+.log-time {
+  color: #90A4AE;
+  margin-right: 8px;
 }

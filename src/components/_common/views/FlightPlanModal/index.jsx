@@ -1,3 +1,5 @@
+import { sendCommand } from "../../../../services/MockAPI";
+
 export function FlightPlanListView({ item, onClick }) {
     return (
         <div className="plan-item" onClick={onClick}>
@@ -10,13 +12,31 @@ export function FlightPlanListView({ item, onClick }) {
     );
 }
 
-export function FlightPlanDetailView({ details }) {
-    // if (!details) return null;
+export function FlightPlanDetailView({ details, onClose}) {
+
+    const handleActivate = async () => {
+        try {
+            console.log(`Activating plan: ${details.id}`);
+
+            const response = await sendCommand('ACTIVATE_FLIGHT_PLAN', { 
+                flightPlanId: details.id 
+            });
+            
+            alert(response.message);
+            
+            onClose(); 
+            } 
+        catch (error) {
+            console.error('Failed to activate plan:', error);
+            alert('Failed to activate plan.');
+        }
+    };
+
+    if (!details) return null;
     return (
         <div>
             <h3>{details.name}</h3>
             <p>{details.description}</p>
-
             <ul>
                 {details.waypoints.map((wp) => (
                     <li key={wp.order}>
@@ -24,6 +44,7 @@ export function FlightPlanDetailView({ details }) {
                     </li>
                 ))}
             </ul>
+            <button onClick={handleActivate} className="btn btn-activate">Activate</button>
         </div>
     );
 }
