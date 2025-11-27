@@ -1,4 +1,5 @@
 import {create} from 'zustand';
+import { WAYPOINT_ACTIONS } from './components/waypointActions';
 
 export const useDroneStore = create((set) => ({
     telemetry: {
@@ -16,7 +17,11 @@ export const useDroneStore = create((set) => ({
     },
     settings: {
         system: {units: "metric", mapDisplay: "satellite", storeLog: true},
-        drone: {rthAltitude: 100, geofenceEnabled: true}
+        drone: {rthAltitude: 100, 
+            geofenceEnabled: true,
+            homeLatitude: 36.737797,
+            homeLongitude: -119.787125
+        }
     },
     missionLogs: [],
     environment: {
@@ -26,6 +31,7 @@ export const useDroneStore = create((set) => ({
     },
     appMode: 'idle',
     activeWaypoints: [],
+    savedFlightPlans: {},
 
     updateTelemetry: (newTelemetryData) => set((state) => ({
         telemetry: {
@@ -71,13 +77,35 @@ export const useDroneStore = create((set) => ({
     })),
 
     addWaypoint: (waypoint) => set((state) => ({
-        activeWaypoints: [...state.activeWaypoints, waypoint]
+        activeWaypoints: [...state.activeWaypoints, {
+            ...waypoint,
+            // Default to PASS_THROUGH if no action specified
+            action: waypoint.action || WAYPOINT_ACTIONS.PASS_THROUGH 
+        }]
+    })),
+
+    // Finds a waypoint by ID and merges the 'updates' object into it
+    updateWaypoint: (waypointId, updates) => set((state) => ({
+        activeWaypoints: state.activeWaypoints.map((wp) => 
+        wp.id === waypointId 
+            ? { ...wp, ...updates } // Found it: create copy with updates merged
+            : wp                    // Not it: return unchanged
+        )
     })),
 
     removeWaypoint: (waypointId) => set((state) => ({
         activeWaypoints: state.activeWaypoints.filter(wp => wp.id !== waypointId)
-  })),
+    })),
   
+    setWaypoints : (waypoints) => set({activeWaypoints: waypoints}),
+
     clearWaypoints: () => set({ activeWaypoints: [] }),
+
+    saveFullFlightPlan: (fullPlanData) => set((state) => ({
+    savedFlightPlans: {
+      ...state.savedFlightPlans,
+      [fullPlanData.id]: fullPlanData // Use ID as key for fast lookup
+    }
+  })),
 
 }));

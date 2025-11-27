@@ -8,17 +8,24 @@ function ListDetailModal({
     fetchList, // Function to get all objects 
     fetchDetails, // Function to get a specific instance of an object
     ListItemComponent,
-    DetailsComponent
+    DetailsComponent,
+
+    onItemSelect, // Function to run when an item is selected
+    onCreateNew,  // Function to run when "Create New" is clicked
+
 }) {
     // Variable to switch between list and view modes
     const [view, setView] = useState('list');
-    // Sets plans with a function to update plans
+    // // Sets plans with a function to update plans
     const [list, setList] = useState([]);
     const [selected, setSelected] = useState(null);
 
     // When isOpen changes, run the following code
     useEffect(() => {
         if (isOpen) {
+            // Default to list view
+            setView('list');
+            
             const loadList = async () => {
                 const response = await fetchList();
                 // If the status is success then update the plan list
@@ -36,7 +43,22 @@ function ListDetailModal({
             setSelected(response.data);
             setView("detail");
         }
+        else {
+            alert("Failed to load plan details.");
+        }
     }
+
+    const handleCreateNew = () => {
+        if (onCreateNew) onCreateNew();
+        onClose();
+    };
+
+    const handleConfirmSelection = () => {
+        if (onItemSelect && selected) {
+            onItemSelect(selected);
+            onClose();
+        }
+    };
 
     // If the window isn't open then don't display anything 
     if(!isOpen) {
@@ -55,16 +77,23 @@ function ListDetailModal({
                                 <ListItemComponent item={item} onClick={() => handleSelect(item)} />
                             </div>
                         ))}
-                        <div style={{ marginTop: 12 }}>
-                            <button className="btn btn-cancel">Create New</button>
-                        </div>
+
+                        {onCreateNew && (
+                            <button className="btn btn-cancel" onClick={handleCreateNew}>
+                            Create New Plan
+                            </button>
+                        )} 
                     </div>
                 )}
 
                 {view === 'detail' && (
                     <div className="details">
                         <button onClick={() => setView('list')} className="btn btn-cancel">Back to list</button>
-                        <DetailsComponent details={selected} onClose={onClose}/>
+                        <DetailsComponent 
+                            details={selected} 
+                            onClose={onClose}
+                            onConfirm={handleConfirmSelection}
+                        />
                     </div>
                 )}
 

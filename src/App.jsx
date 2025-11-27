@@ -18,8 +18,27 @@ function App() {
   const [isPlanOpen, setIsPlanOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
+  // Functions to load previous plans
+  const setAppMode = useDroneStore((state) => state.setAppMode);
+  const setWaypoints = useDroneStore((state) => state.setWaypoints);
+  const clearWaypoints = useDroneStore((state) => state.clearWaypoints);
+
   // Used to initially fetch data on start up
   const setGlobalSettings = useDroneStore((state) => state.updateSettings)
+
+  // Loads a plan into the editor
+  const handleLoadPlan = (planDetails) => {
+    console.log("Loading plan into editor:", planDetails.name);
+    setWaypoints(planDetails.waypoints); // Load waypoints into the store
+    setAppMode('PLANNING'); // Set the global mode
+  };
+
+  // Starts a new plan
+  const handleCreateNewPlan = () => {
+    console.log("Starting new plan...");
+    clearWaypoints(); // Clear any existing waypoints
+    setAppMode('PLANNING'); // Set the global mode
+  };
 
   // Start the telemetry simulation and fetch initial settings
   useEffect(() => {
@@ -70,7 +89,10 @@ function App() {
         fetchList={getPlanList}
         fetchDetails={getPlanDetails}
         ListItemComponent={FlightPlanListView}
-        DetailsComponent={FlightPlanDetailView}
+        DetailsComponent={FlightPlanDetailView} 
+        
+        onItemSelect={handleLoadPlan} // This function is called when a plan is clicked
+        onCreateNew={handleCreateNewPlan} // This function is called to start a new plan
       />
 
       {/* History Modal (using the same generic component) */}

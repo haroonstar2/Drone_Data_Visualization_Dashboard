@@ -12,7 +12,7 @@ export function FlightPlanListView({ item, onClick }) {
     );
 }
 
-export function FlightPlanDetailView({ details, onClose}) {
+export function FlightPlanDetailView({ details, onConfirm}) {
 
     const handleActivate = async () => {
         try {
@@ -25,7 +25,7 @@ export function FlightPlanDetailView({ details, onClose}) {
             alert(response.message);
             
             onClose(); 
-            } 
+        } 
         catch (error) {
             console.error('Failed to activate plan:', error);
             alert('Failed to activate plan.');
@@ -44,7 +44,9 @@ export function FlightPlanDetailView({ details, onClose}) {
                     </li>
                 ))}
             </ul>
-            <button onClick={handleActivate} className="btn btn-activate">Activate</button>
+            <button className="btn-save" onClick={onConfirm}>
+                Edit / Load Plan
+            </button>
         </div>
     );
 }

@@ -36,7 +36,11 @@ export const getSettings = () => {
         commandId: `cmd_${Math.random().toString(16).slice(2)}`, // Random Id
         data: {
           system: {units: "metric", mapDisplay: "satellite"},
-          drone: {rthAltitude: 100, geofenceEnabled: true}
+          drone: {rthAltitude: 100, 
+                  geofenceEnabled: true,
+                  homeLatitude: 36.737797,
+                  homeLongitude: -119.787125
+          }
         }
       });
     }, 1000); // Delay to simulate network delay
@@ -65,6 +69,23 @@ export const saveSettings = (newSettings) => {
 export const getPlanList = () => {
   console.log("[MOCK API]: Fetching flight plan list...");
   
+  const savedFlightPlans = useDroneStore.getState().savedFlightPlans;
+
+  const newlySavedPlanSummaries = Object.values(savedFlightPlans).map(plan => ({
+      id: plan.id,
+      name: plan.name,
+      waypointCount: plan.waypoints.length,
+      lastModified: plan.lastModified
+  })).reverse();
+
+  // Hardcoded "server" plans
+  const serverPlans = [
+      { id: 'fp_12345', name: 'Field Survey Alpha', waypointCount: 3, lastModified: '2025-11-01T10:00:00Z' },
+      { id: 'fp_67890', name: 'Perimeter Inspection', waypointCount: 8, lastModified: '2025-10-30T15:20:00Z' }
+  ];
+
+  const combinedPlans = [...newlySavedPlanSummaries, ...serverPlans];
+
   console.log("[MOCK API]: Done fetching flight plan list");
   return new Promise((resolve) => {
     setTimeout(() => {
@@ -73,31 +94,7 @@ export const getPlanList = () => {
         status: "success",
         timestamp: new Date().toISOString(),
         data: {
-          // Array of all plans 
-          items: [
-            {
-              id: "fp_123454",
-              name: "Field Survery Alpha 1",
-              description: "200ft alititude grid pattern",
-              waypointCount: 3,
-              lastModified: new Date().toISOString()
-            },
-            {
-              id: "fp_123456",
-              name: "Field Survery Alpha 2",
-              description: "200ft alititude grid pattern",
-              waypointCount: 3,
-              lastModified: new Date().toISOString()
-            },
-            {
-              id: "fp_123457",
-              name: "Field Survery Alpha 3",
-              description: "200ft alititude grid pattern",
-              waypointCount: 3,
-              lastModified: new Date().toISOString()
-            }
-            // More plans like this one
-          ]
+          items: combinedPlans
         }
       });
     }, 1000);
@@ -107,10 +104,26 @@ export const getPlanList = () => {
 // Request flight plan details. 
 export const getPlanDetails = (planId) => {
   console.log(`[MOCK API]: Fetching details for plan: ${planId}`);
-
+  
   console.log(`[MOCK API]: Done fetching details for plan: ${planId}`);
   return new Promise((resolve) => {
     setTimeout(() => {
+
+      // Check the frontend "database" first
+      const savedFlightPlans = useDroneStore.getState().savedFlightPlans;
+      const foundPlan = savedFlightPlans[planId];
+
+      if (foundPlan) {
+        console.log(`[MOCK API]: Found plan ${planId} in local store.`);
+        resolve({
+            type: "FLIGHT_PLAN_DATA",
+            status: "success",
+            timestamp: new Date().toISOString(),
+            data: foundPlan // Return the data we found in the store
+        });
+        return; // Exit early
+      }
+
       resolve({
         type: "FLIGHT_PLAN_DATA",
         status: "success",
@@ -121,9 +134,9 @@ export const getPlanDetails = (planId) => {
           description: "200ft alititude grid pattern",
           lastModified: new Date().toISOString(),
           waypoints: [
-            { order: 1, latitude: 36.7468, longitude: -119.7726, altitude: 60, action: 'take_photo' },
-            { order: 2, latitude: 36.7470, longitude: -119.7726, altitude: 60, action: 'take_photo' },
-            { order: 3, latitude: 36.7470, longitude: -119.7720, altitude: 60, action: 'hover_5_sec' }
+            { id: 'wp_hc_1', order: 1, latitude: 36.7468, longitude: -119.7726, altitude: 60, action: 'take_photo' },
+            { id: 'wp_hc_2', order: 2, latitude: 36.7470, longitude: -119.7726, altitude: 60, action: 'take_photo' },
+            { id: 'wp_hc_3', order: 3, latitude: 36.7470, longitude: -119.7720, altitude: 60, action: 'hover_5_sec' }
           ]
         }
       });
@@ -176,6 +189,25 @@ export const getMissionLogs = (missionId) => {
         }
       });
     },1000);
+  });
+};
+
+export const saveFlightPlan = (planData) => {
+  // planData = { name: "My Plan", waypoints: [...] }
+  console.log('[MOCK API] Saving flight plan:', planData.name);
+
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve({
+        type: 'FLIGHT_PLAN_SAVED',
+        status: 'success',
+        message: `Plan '${planData.name}' saved successfully.`,
+        data: {
+          id: planData.id,
+          ...planData
+        }
+      });
+    }, 700);
   });
 };
 
@@ -261,4 +293,4 @@ export const startSimulation = () => setInterval(() => {
   
   useDroneStore.getState().updateTelemetry(telemetry);
   useDroneStore.getState().updateEnvironment(newEnv);
-}, 10000);
+}, 5000);
