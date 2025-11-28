@@ -1,0 +1,63 @@
+.control-buttons {
+  display: flex;
+  justify-content: flex-end; 
+  align-items: center;
+  padding: 15px;
+  background-color: transparent;
+  gap: 10px; 
+  position: sticky; 
+  bottom: 0;
+  width: 100%;
+  box-sizing: border-box;
+  z-index: 10;
+}
+
+.control-buttons button {
+  background-color: #4CAF50; 
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: background-color 0.2s ease;
+}
+
+.control-buttons button:hover {
+  background-color: #43A047;
+}
+
+.home-button {
+  background-color: #FFC107 !important;
+  font-size: 1.5em !important;
+  padding: 5px 10px !important;
+  line-height: 1; 
+}
+
+.home-button:hover {
+  background-color: #FFB300 !important;
+}
+
+.control-buttons button.active {
+  background-color: #FFC107; 
+  color: #212121; 
+  box-shadow: 0 0 10px 2px #FFC107;
+}
+
+.map-view.crosshair-cursor {
+  cursor: crosshair;
+}
+
+.map-prompt {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(255, 193, 7, 0.9);
+  color: #212121;
+  padding: 10px 20px;
+  border-radius: 5px;
+  font-weight: bold;
+  z-index: 10;
+  pointer-events: none; 
+}
