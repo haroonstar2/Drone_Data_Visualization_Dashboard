@@ -1,0 +1,106 @@
+const API_BASE_URL = '/api';
+
+/*
+Generic helper function for making fetch requests.
+Handles headers, JSON parsing, and basic error checking.
+ */
+async function request(endpoint, options = {}) {
+  // Set up default headers for JSON
+  const defaultHeaders = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  };
+
+  // Merge default headers with any custom headers passed in options
+  const config = {
+    ...options,
+    headers: {
+      ...defaultHeaders,
+      ...options.headers,
+    },
+  };
+
+  console.log(`[RealAPI] ${config.method || 'GET'} request to: ${API_BASE_URL}${endpoint}`);
+
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+
+    // Check for HTTP error codes
+    if (!response.ok) {
+      // Try to parse error message from server
+      const errorBody = await response.json().catch(() => ({}));
+      const errorMessage = errorBody.message || `HTTP Error ${response.status}: ${response.statusText}`;
+      throw new Error(errorMessage);
+    }
+
+    // Parse successful JSON response
+    // This returns the whole payload rather than just the data
+    const data = await response.json();
+    console.log('[RealAPI] Success:', data);
+    return data;
+
+  } catch (error) {
+    console.error('[RealAPI] Request failed:', error.message);
+    // Re-throw so the calling component can handle it in its try/catch block
+    throw error;
+  }
+}
+
+// Commands & Settings
+export const sendCommand = (commandName, payload = {}) => {
+  return request('/commands', {
+    method: 'POST',
+    body: JSON.stringify({
+      command: {
+        type: 'COMMAND',
+        payload: { name: commandName, ...payload }
+      }
+    }),
+  });
+};
+
+export const getSettings = () => {
+  return request('/settings', { method: 'GET' });
+};
+
+export const saveSettings = (newSettings) => {
+  return request('/settings', {
+    method: 'POST',
+    body: JSON.stringify(newSettings),
+  });
+};
+
+// Flight Plans 
+export const getPlanList = () => {
+  return request('/flight-plans', { method: 'GET' });
+};
+
+export const getPlanDetails = (planId) => {
+  // Insert the ID into the URL path
+  return request(`/flight-plans/${planId}`, { method: 'GET' });
+};
+
+export const saveFlightPlan = (planData) => {
+  return request('/flight-plans', {
+    method: 'POST',
+    body: JSON.stringify(planData),
+  });
+};
+
+// Mission History
+export const getMissionHistory = () => {
+  return request('/missions', { method: 'GET' });
+};
+
+export const getMissionLogs = (missionId) => {
+  // Insert the ID into the URL path
+  return request(`/missions/${missionId}/logs`, { method: 'GET' });
+};
+
+//  PLACEHOLDERS FOR REAL-TIME (WEBSOCKETS)
+
+export const startSimulation = () => {
+  console.warn("[RealAPI] startSimulation called, but real-time data requires WebSockets implementation.");
+  // This would return the WebSocket connection object or cleanup function.
+  return null;
+};

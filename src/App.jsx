@@ -105,10 +105,6 @@ function App() {
         ListItemComponent={MissionListItem}
         DetailsComponent={HistoryLogDetailsView}
       />
-      {/* <PastLogs 
-        isOpen={isLogsOpen}
-        onClose={() => setIsLogsOpen(false)}
-      /> */}
     </div>
   );
 }
