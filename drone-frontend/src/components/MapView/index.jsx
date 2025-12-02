@@ -15,16 +15,6 @@ const customDroneIcon = L.icon({
   popupAnchor: [0, -32]    // Point from which the popup should open relative to the iconAnchor
 });
 
-// Component to make the map follow the drone
-function MapFollower({ position }) {
-  const map = useMap(); // Get the map instance
-  useEffect(() => {
-    map.setView(position, map.getZoom()); // Pan the map to the new position
-  }, [position, map]); // Re-run when position changes
-  
-  return null;
-}
-
 function MapClickHandler({ onMapClick }) {
   // Hook listens for map events
   useMapEvents({
@@ -64,7 +54,8 @@ function MapView() {
       id: tempId, // Use the temp ID
       latitude: Number(lat.toFixed(6)),
       longitude: Number(lng.toFixed(6)),
-      altitude: 100
+      altitude: 100,
+      action: WAYPOINT_ACTIONS.PASS_THROUGH,
     };
 
     // Add the marker to the map immediately, before the API call
@@ -177,6 +168,7 @@ function MapView() {
                             const val = parseInt(e.target.value, 10);
                             if (!isNaN(val) && val > 0) {
                                updateWaypoint(wp.id, { hoverDuration: val });
+                               
                             }
                           }}
                         />

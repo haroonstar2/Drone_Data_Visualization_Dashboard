@@ -1,4 +1,4 @@
-const API_BASE_URL = '/api';
+const API_BASE_URL = '/api/v1';
 
 /*
 Generic helper function for making fetch requests.
@@ -18,10 +18,11 @@ async function request(endpoint, options = {}) {
       ...defaultHeaders,
       ...options.headers,
     },
-  };
+  };  
 
   console.log(`[RealAPI] ${config.method || 'GET'} request to: ${API_BASE_URL}${endpoint}`);
-
+  console.log(config.body);
+  
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
 
@@ -46,14 +47,13 @@ async function request(endpoint, options = {}) {
   }
 }
 
-// Commands & Settings
-export const sendCommand = (commandName, payload = {}) => {
-  return request('/commands', {
+export const sendCommand = (commandName, commandData = {}) => {
+  return request('/command', {
     method: 'POST',
     body: JSON.stringify({
       command: {
-        type: 'COMMAND',
-        payload: { name: commandName, ...payload }
+        type: commandName,
+        payload: commandData
       }
     }),
   });
@@ -72,18 +72,25 @@ export const saveSettings = (newSettings) => {
 
 // Flight Plans 
 export const getPlanList = () => {
-  return request('/flight-plans', { method: 'GET' });
+  return request('/plans', { method: 'GET' });
 };
 
 export const getPlanDetails = (planId) => {
   // Insert the ID into the URL path
-  return request(`/flight-plans/${planId}`, { method: 'GET' });
+  return request(`/plans/${planId}`, { method: 'GET' });
 };
 
 export const saveFlightPlan = (planData) => {
-  return request('/flight-plans', {
+  const wrappedBody = {
+    plan: {
+        type: "FLIGHT_PLAN_DATA", 
+        payload: planData        
+    }
+  };
+
+  return request('/plans', {
     method: 'POST',
-    body: JSON.stringify(planData),
+    body: JSON.stringify(wrappedBody),
   });
 };
 

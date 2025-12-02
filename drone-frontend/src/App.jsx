@@ -60,7 +60,6 @@ function App() {
     return () => clearInterval(id);
   }, [setGlobalSettings]);
 
-
   return (
     <div className="dashboard-layout">
     {/* Pass the onClick props to Topbar */}

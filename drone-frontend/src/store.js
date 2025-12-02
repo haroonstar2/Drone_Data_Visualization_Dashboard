@@ -31,7 +31,6 @@ export const useDroneStore = create((set) => ({
     },
     appMode: 'idle',
     activeWaypoints: [],
-    savedFlightPlans: {},
 
     updateTelemetry: (newTelemetryData) => set((state) => ({
         telemetry: {
@@ -100,12 +99,5 @@ export const useDroneStore = create((set) => ({
     setWaypoints : (waypoints) => set({activeWaypoints: waypoints}),
 
     clearWaypoints: () => set({ activeWaypoints: [] }),
-
-    saveFullFlightPlan: (fullPlanData) => set((state) => ({
-    savedFlightPlans: {
-      ...state.savedFlightPlans,
-      [fullPlanData.id]: fullPlanData // Use ID as key for fast lookup
-    }
-  })),
 
 }));
