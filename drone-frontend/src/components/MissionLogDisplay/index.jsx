@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
 import { useDroneStore } from '../../store';
-import { animateScroll as scroll } from 'react-scroll';
 import './MissionLogDisplay.css';
 
 function MissionLogDisplay() {

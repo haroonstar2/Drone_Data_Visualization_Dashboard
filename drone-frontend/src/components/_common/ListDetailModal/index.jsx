@@ -28,9 +28,10 @@ function ListDetailModal({
             
             const loadList = async () => {
                 const response = await fetchList();
+                
                 // If the status is success then update the plan list
                 if (response.status === 'success') {
-                    setList(response.data.items);
+                    setList(response.data);
                 }
             }
             loadList();

@@ -1,8 +1,7 @@
 # Run using fastapi dev *name*
-from fastapi import FastAPI, HTTPException # For better error checking
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware # Allows the frontend to make requests to the backend
 from pydantic import BaseModel, Field
-from typing import Dict
 import datetime # For time stamping
 import uuid # For generating Ids
 
@@ -26,10 +25,30 @@ app.add_middleware(
     allow_headers=["*"],         # Allow all headers
 )
 
-# Define what a request should look like
-class GenericPayload(BaseModel):
-    type: str
-    payload: dict
+# Model for immediate drone commands (HOVER, LAND, etc.)
+class CommandPayload(BaseModel):
+    name: str
+    # Use Field alias so frontend can send camelCase "hoverDuration"
+    hover_duration: int | None = Field(default=None, alias="hoverDuration")
+
+# Model for drone settings updates
+class DroneSettingsPayload(BaseModel):
+    rthAltitude: int
+    geofence_enabled: bool | None = Field(default=None, alias="geofenceEnabled")
+    homeLatitude: float
+    homeLongitude: float
+    # Add other drone-specific settings
+
+# Wrapper specifically for commands
+class CommandWrapper(BaseModel):
+    command: CommandPayload
+
+# Wrapper specifically for settings
+class SettingsWrapper(BaseModel):
+    drone: DroneSettingsPayload
+
+class FlightPlanWrapper(BaseModel):
+    plan: FlightPlanModel
 
 # Define what a single waypoint looks like
 class WaypointModel(BaseModel):
@@ -62,64 +81,85 @@ async def root():
 
 # COMMAND: Sends an immediate instruction to the backend
 @app.post("/api/v1/command")
-async def post_commands(wrapper : Dict[str, GenericPayload]):
+async def post_commands(wrapper : CommandWrapper):
 
-    if len(wrapper) != 1:
-        raise HTTPException(status_code=422, detail="Request body must contain exactly one top-level key (e.g., 'command' or 'setting').")
-
-    # Extract the key and inner payload object
-    key, payload_data = list(wrapper.items())[0]
-    print(f"Recieved wrapper key: {key}")
-
+    command_data = wrapper.command
     # Generate a server-side ID for this command
-    commandId = str(uuid.uuid4())
-    
-    commandType = payload_data.type
-    commandPayload = payload_data.payload
+    command_id = str(uuid.uuid4())
+
+    command_name = command_data.name
+    hover_duration = command_data.hover_duration
 
     # For time stamping
-    now = datetime.datetime.now()
-    date_string = now.isoformat()
+    date_string = datetime.datetime.now().isoformat()
 
-    optional_message = f"Received {key} type: {commandType}"
-    print(f"Processing {key}: {commandType}, ID: {commandId}")
+    message = f"Received {command_name} successfully"
+    print(f"Processing COMMAND: {command_name}, ID: {command_id}")
 
     return {
         "type": "COMMAND_RESPONSE",
         "status": "success",
-        "message": optional_message,
+        "message": message,
         "timestamp": date_string,
-        "commandId": commandId,
-        "data": commandPayload
+        "command_id": command_id,
+        "data": command_data.model_dump(by_alias=True)
+    }
+
+# GET SETTINGS: Gathers all drone settings
+@app.get("/api/v1/settings")
+async def get_settings():
+
+    drone_settings = {
+        "rthAltitude": 100, 
+        "geofenceEnabled": True,
+        "homeLatitude": 36.737797,
+        "homeLongitude": -119.787125
+    }
+
+    date_string = datetime.datetime.now().isoformat()
+
+    return {
+        "type": "SETTINGS_FETCH_RESPONSE",
+        "status": "success",
+        "message": "Drone settings retrieved successfully",
+        "timestamp": date_string,
+        "data": drone_settings
+    }
+
+# SAVE SETTINGS: Sends a configuration change to the backend
+@app.post("/api/v1/settings")
+async def save_settings(wrapper: SettingsWrapper):
+
+    settings_data = wrapper.drone
+    
+    now = datetime.datetime.now().isoformat()
+
+    print(f"Processing SETTINGS UPDATE: RTH Alt: {settings_data.rthAltitude}")
+
+    return {
+        "type": "SETTING_UPDATE_RESPONSE",
+        "status": "success",
+        "message": "Settings updated successfully",
+        "timestamp": now,
+        "data": settings_data.model_dump()
     }
 
 # SAVE PLAN: Create a new plan or update an existing one.
 @app.post("/api/v1/plans")
-async def save_plan(wrapper : Dict[str, GenericPayload]):
+async def save_plan(wrapper : FlightPlanWrapper):
 
-    # Extract the key and inner payload object
-    key, payload_data = list(wrapper.items())[0]
-    print(f"Recieved wrapper key: {key}")
-
-    # Try to unpack the payloac into a FlightPlanModel
-    try:
-        plan_data = FlightPlanModel(**payload_data.payload)
-    except Exception as e:
-        # If the inner data wasn't a valid flight plan, reject it.
-        print(f"Validation error: {e}")
-        raise HTTPException(status_code=422, detail="Inner payload does not match Flight Plan structure.")
+    plan_data = wrapper.plan
 
     # If the frontend sent an ID, keep it. If not, generate a new one.
     if plan_data.id:
-        planId = plan_data.id
-        print(f"Updating existing plan: {planId}")
+        plan_id = plan_data.id
+        print(f"Updating existing plan: {plan_id}")
     else:
-        planId = str(uuid.uuid4())
-        print(f"Creating new plan with ID: {planId}")
+        plan_id = str(uuid.uuid4())
+        print(f"Creating new plan with ID: {plan_id}")
 
     # For time stamping
-    now = datetime.datetime.now()
-    date_string = now.isoformat()
+    date_string = datetime.datetime.now().isoformat()
 
     return {
         "type": "FLIGHT_PLAN_SAVED",
@@ -127,7 +167,7 @@ async def save_plan(wrapper : Dict[str, GenericPayload]):
         "message": f"Flight plan {plan_data.name} successfully saved",
         "timestamp": date_string,
         "data": {
-            "id": planId,
+            "id": plan_id,
             "name": plan_data.name,
             "description": plan_data.description,
             # Convert the list of WaypointModels back to a list of dictionaries
@@ -143,24 +183,22 @@ async def save_plan(wrapper : Dict[str, GenericPayload]):
 async def get_plans():
 
     plans = [
-            { "id": 'fp_12345', 
-             "name": 'Field Survey Alpha', 
-             "description": "Summary description...",
-             "waypointCount": 3, 
-             "lastModified": '2025-11-01T10:00:00Z' 
-            },
-            { "id": 'fp_67890', 
-            "name": 'Perimeter Inspection', 
+        { "id": 'fp_12345', 
+            "name": 'Field Survey Alpha', 
             "description": "Summary description...",
-            "waypointCount": 8, 
-            "lastModified": '2025-10-30T15:20:00Z' 
-            }
+            "waypointCount": 3, 
+            "lastModified": '2025-11-01T10:00:00Z' 
+        },
+        { "id": 'fp_67890', 
+        "name": 'Perimeter Inspection', 
+        "description": "Summary description...",
+        "waypointCount": 8, 
+        "lastModified": '2025-10-30T15:20:00Z' 
+        }
     ]
 
     # For time stamping
-    now = datetime.datetime.now()
-    date_string = now.isoformat()
-
+    date_string = datetime.datetime.now().isoformat()
 
     return {
         "type": "FLIGHT_PLAN_LIST",
@@ -169,6 +207,84 @@ async def get_plans():
         "timestamp": date_string,
         "data": plans
     }
+
+# GET FLIGHT PLAN DETAILS: Fetches the complete data for a specific plan.
+@app.get("/api/v1/plans/{plan_id}")
+async def get_plan_details(plan_id: str):
+
+    # For time stamping
+    date_string = datetime.datetime.now().isoformat()
+
+    payload = {
+          "id": plan_id,
+          "name": "Field Survey Alpha (retrieved)",
+          "description": "200ft alititude grid pattern",
+          "lastModified": date_string,
+          "waypoints": [
+            { "id": 'wp_hc_1', "order": 1, "latitude": 36.7468, "longitude": -119.7726, "altitude": 60, "action": 'take_photo' },
+            { "id": 'wp_hc_2', "order": 2, "latitude": 36.7468, "longitude": -119.7726, "altitude": 60, "action": 'hover' },            
+            { "id": 'wp_hc_3', "order": 3, "latitude": 36.7468, "longitude": -119.7726, "altitude": 60, "action": 'pass_through' },          ]
+        }
+
+    return {
+        "type": "FLIGHT_PLAN_DATA",
+        "status": "success",
+        "message": f"Flight plan {plan_id} details retrieved successfully",
+        "timestamp": date_string,
+        "data": payload
+    }
+
+# LIST MISSION HISTORY: Fetches a summary list of past missions
+@app.get("/api/v1/missions")
+async def get_mission_history():
+
+    payload = [
+        { "id": 'm_001', "name": 'Test Flight 1', "date": '2025-09-20', "duration_min": 15, "logCount": 45 },
+        { "id": 'm_002', "name": 'Mapping Run A', "date": '2025-09-22', "duration_min": 45, "logCount": 152 },
+        { "id": 'm_003', "name": 'Perimeter Check', "date": '2025-09-24', "duration_min": 22, "logCount": 78 }
+    ]
+
+    # For time stamping
+    date_string = datetime.datetime.now().isoformat()
+
+    return {
+    "type": "MISSION_LIST",
+    "status": "success",
+    "message": f"Mission list retrieved successfully",
+    "timestamp": date_string,
+    "data": payload
+    }
+
+# GET MISSION DETAILS: Fetches all logs associated with a completed mission
+@app.get("/api/v1/missions/{mission_id}")
+async def get_mission_details(mission_id: str):
+    
+    fake_logs = [
+        {"timestamp": "2025-09-20T10:00:01Z", "level": "INFO", "message": f"Mission {mission_id} started."},
+        {"timestamp": "2025-09-20T10:00:05Z", "level": "INFO", "message": "Takeoff complete."},
+        {"timestamp": "2025-09-20T10:07:22Z", "level": "INFO", "message": "Waypoint 1 reached."},
+        {"timestamp": "2025-09-20T10:15:00Z", "level": "WARN", "message": "Low battery, initiating RTH."},
+        {"timestamp": "2025-09-20T10:17:00Z", "level": "INFO", "message": "Landing complete."}
+    ]
+    log_count = len(fake_logs)
+
+    payload = {
+        "id": mission_id,
+        "logCount": log_count,
+        "logs": fake_logs
+    }
+
+    # For time stamping
+    date_string = datetime.datetime.now().isoformat()
+
+    return {
+        "type": "MISSION_DETAILS",
+        "status": "success",
+        "message": f"Mission {mission_id} logs retrieved successfully",
+        "timestamp": date_string,
+        "data": payload
+    }
+
 
 @app.get("/api/status")
 async def get_status():

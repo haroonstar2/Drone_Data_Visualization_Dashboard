@@ -1,4 +1,4 @@
-import { sendCommand } from "../../../../services/MockAPI";
+import { sendCommand } from "../../../../services/RealAPI";
 
 export function FlightPlanListView({ item, onClick }) {
     return (
@@ -12,7 +12,7 @@ export function FlightPlanListView({ item, onClick }) {
     );
 }
 
-export function FlightPlanDetailView({ details, onConfirm}) {
+export function FlightPlanDetailView({ details, onConfirm, onClose }) {
 
     const handleActivate = async () => {
         try {
@@ -46,6 +46,9 @@ export function FlightPlanDetailView({ details, onConfirm}) {
             </ul>
             <button className="btn-save" onClick={onConfirm}>
                 Edit / Load Plan
+            </button>
+            <button className="btn btn-cancel" onClick={handleActivate}>
+                Activate
             </button>
         </div>
     );

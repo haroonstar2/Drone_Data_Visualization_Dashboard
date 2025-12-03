@@ -1,7 +1,12 @@
 import './Settings.css';
 import { useState, useEffect } from "react";
 import { useDroneStore } from "../../store";
-import { saveSettings } from "../../services/MockAPI";
+import { saveSettings } from '../../services/RealAPI';
+
+// Helper function to compare objects quickly
+const areObjectsEqual = (obj1, obj2) => {
+    return JSON.stringify(obj1) === JSON.stringify(obj2);
+}
 
 // Function to handle settings window/funcitonality
 //isOpen handles when user is changing settings
@@ -43,20 +48,38 @@ function Settings({isOpen, onClose}) {
     };
 
     const handleSave = async () => {
+
+        const systemChanged = !areObjectsEqual(localSettings.system, globalSettings.system);
+        const droneChanged = !areObjectsEqual(localSettings.drone, globalSettings.drone);
+
+        // If nothing changed then don't do anything
+        if (!systemChanged && !droneChanged) {
+            onClose();
+            return;
+        }
+
+        console.log(`Saving Changes - System changed: ${systemChanged}, Drone changed: ${droneChanged}`);
+
         try {
-            // Save the local settings to the mock backend and wait for a response
-            const response = await saveSettings(localSettings);   
-            // See if the response was correctly sent
-            if (response.status === "success") {
-                // Update the Zustrand store
-                updateSettings(localSettings);
-                console.log("Settings Saved!");
-                onClose(); // Close the window
+            // Only send a backend request if drone settings changed
+            if (droneChanged) {
+                console.log("Drone settings changed. Sending call to backend...");
+
+                // Save the local settings to the mock backend and wait for a response
+                const response = await saveSettings({ drone: localSettings.drone}); 
+                
+                if (response.status !== 'success') {
+                    throw new Error(response.message || "Backend rejected settings update.");
+                }
+            } else {
+                console.log("Only UI/System settings changed. Skipping backend call.");
             }
-            else {
-                console.log("Failed to send settings" + response.message);
-                alert("Failed to save settings:" + response.message);
-            }
+
+            // Update the Zustrand store with new settings
+            updateSettings(localSettings);
+            console.log("Settings Saved!");
+            onClose(); // Close the window
+
         } catch (error) {
             console.log("Save Settings Error:" + error);
             alert("An error has occurred while saving settings");

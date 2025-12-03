@@ -36,7 +36,6 @@ function ControlButtons() {
       switch(commandName) {
         case "Hover":
           apiCommandType = "HOVER";
-          apiPayload = { hover_duration: -1 }; // Hover indefinitely
           break;
 
         case "Land":
@@ -55,7 +54,7 @@ function ControlButtons() {
           break;
       }
 
-      console.log(`Sending API Command: [${apiCommandType}]`, apiPayload);
+      console.log(`[Real API] Sending Command: [${apiCommandType}]`, apiPayload);
       const response = await sendCommand(apiCommandType, apiPayload);
       console.log(`[API Success] ${apiCommandType}:`, response);
       alert(response.message);
@@ -125,7 +124,6 @@ function ControlButtons() {
       clearWaypoints();
     }
   };
-
 
   if (appMode === 'PLANNING' || appMode === 'adding_waypoint') {
     return (

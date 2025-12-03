@@ -7,7 +7,8 @@ import Settings from './components/Settings';
 import ListDetailModal from './components/_common/ListDetailModal';
 import { FlightPlanListView, FlightPlanDetailView } from './components/_common/views/FlightPlanModal';
 import { MissionListItem, HistoryLogDetailsView } from './components/_common/views/HistoryModal';
-import { startSimulation, getSettings, getPlanList, getPlanDetails, getMissionHistory, getMissionLogs } from './services/MockAPI';
+import { startSimulation } from './services/MockAPI'; 
+import { getSettings, getPlanList, getPlanDetails, getMissionHistory, getMissionLogs } from './services/RealAPI';
 import { useEffect, useState } from 'react';
 import { useDroneStore } from './store';
 
@@ -50,6 +51,7 @@ function App() {
       const response = await getSettings();
 
       if (response.status === "success") {
+        console.log("Successfully fetched settings");
         setGlobalSettings(response.data);
       } else {
         alert("Error fetching initial settings");

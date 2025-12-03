@@ -48,13 +48,19 @@ async function request(endpoint, options = {}) {
 }
 
 export const sendCommand = (commandName, commandData = {}) => {
+  
+  const payload = {
+    name: commandName,
+    // Map frontend "hover_duration" to the expected "hoverDuration" alias, if it exists
+    ...(commandData.hover_duration && { hoverDuration: commandData.hover_duration })
+  };
+
+  console.log(payload);
+  
   return request('/command', {
     method: 'POST',
     body: JSON.stringify({
-      command: {
-        type: commandName,
-        payload: commandData
-      }
+      command: payload
     }),
   });
 };
@@ -81,11 +87,9 @@ export const getPlanDetails = (planId) => {
 };
 
 export const saveFlightPlan = (planData) => {
+  
   const wrappedBody = {
-    plan: {
-        type: "FLIGHT_PLAN_DATA", 
-        payload: planData        
-    }
+    plan: planData
   };
 
   return request('/plans', {
@@ -101,11 +105,10 @@ export const getMissionHistory = () => {
 
 export const getMissionLogs = (missionId) => {
   // Insert the ID into the URL path
-  return request(`/missions/${missionId}/logs`, { method: 'GET' });
+  return request(`/missions/${missionId}`, { method: 'GET' });
 };
 
 //  PLACEHOLDERS FOR REAL-TIME (WEBSOCKETS)
-
 export const startSimulation = () => {
   console.warn("[RealAPI] startSimulation called, but real-time data requires WebSockets implementation.");
   // This would return the WebSocket connection object or cleanup function.

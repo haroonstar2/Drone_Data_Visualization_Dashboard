@@ -1,7 +1,6 @@
 import './MapView.css';
-import { useEffect, useRef } from 'react';
 import { useDroneStore } from '../../store'; 
-import { sendCommand } from '../../services/MockAPI'; 
+import { sendCommand } from '../../services/RealAPI'; 
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents, CircleMarker } from 'react-leaflet';
 import L from 'leaflet';
 import { WAYPOINT_ACTIONS, ACTION_OPTIONS } from '../waypointActions';
@@ -39,7 +38,6 @@ function MapView() {
   const settings = useDroneStore((state) => state.settings);
   const dronePosition = [telemetry.latitude, telemetry.longitude];
 
-  // This is a simple mock for getting map coordinates from a click
   const handleMapClick = async (e) => {
     if (appMode !== 'adding_waypoint') {
       return;
@@ -61,17 +59,39 @@ function MapView() {
     // Add the marker to the map immediately, before the API call
     addWaypoint(newWaypoint);
 
-    console.log('[MOCK API] Sending NEW_WAYPOINT command with payload:', newWaypoint);
+    console.log('[Real API] Sending ADD_WAYPOINT command with payload:', newWaypoint);
     try {
       const response = await sendCommand('ADD_WAYPOINT', newWaypoint);
     } catch (error) {
 
       // Roll back the marker we just added
       removeWaypoint(tempId);       
-      alert('Error: Failed to add waypoint. Please try again.');
+      alert(`Error: Failed to add waypoint: ${error}`);
     } 
   };
   
+  const handleRemove = async (waypointId) => {
+
+    console.log("Attempting to remove waypoint ID:", waypointId);
+
+    if (appMode !== 'PLANNING') {
+      return;
+    }
+
+    const payload = { id: waypointId }
+
+    try {
+      const response = await sendCommand('REMOVE_WAYPOINT', payload);
+      console.log("Backend confirmed removal.");
+
+      removeWaypoint(waypointId);
+
+    } catch (error) {
+      console.error(`Error: Failed to remove waypoint: ${error}`);
+      alert(`Error: Failed to remove waypoint. Check network connection.`);
+    }
+  }
+
   const mapClassName = `map-view ${appMode === 'adding_waypoint' ? 'crosshair-cursor' : ''}`;
   const isPlanningMode = appMode === 'PLANNING' || appMode === 'adding_waypoint';
   
@@ -167,9 +187,10 @@ function MapView() {
                             // Ensure value is a positive integer
                             const val = parseInt(e.target.value, 10);
                             if (!isNaN(val) && val > 0) {
-                               updateWaypoint(wp.id, { hoverDuration: val });
-                               
+                               updateWaypoint(wp.id, { hoverDuration: val });              
                             }
+
+
                           }}
                         />
                       </div>
@@ -178,7 +199,7 @@ function MapView() {
                     {/* Delete Button */}
                     <button 
                         className="btn-delete-wp"
-                        onClick={() => removeWaypoint(wp.id)}
+                        onClick={() => handleRemove(wp.id)}
                     >
                         Delete Waypoint
                     </button>

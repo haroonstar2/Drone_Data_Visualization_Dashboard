@@ -69,22 +69,11 @@ export const saveSettings = (newSettings) => {
 export const getPlanList = () => {
   console.log("[MOCK API]: Fetching flight plan list...");
   
-  const savedFlightPlans = useDroneStore.getState().savedFlightPlans;
-
-  const newlySavedPlanSummaries = Object.values(savedFlightPlans).map(plan => ({
-      id: plan.id,
-      name: plan.name,
-      waypointCount: plan.waypoints.length,
-      lastModified: plan.lastModified
-  })).reverse();
-
   // Hardcoded "server" plans
   const serverPlans = [
       { id: 'fp_12345', name: 'Field Survey Alpha', waypointCount: 3, lastModified: '2025-11-01T10:00:00Z' },
       { id: 'fp_67890', name: 'Perimeter Inspection', waypointCount: 8, lastModified: '2025-10-30T15:20:00Z' }
   ];
-
-  const combinedPlans = [...newlySavedPlanSummaries, ...serverPlans];
 
   console.log("[MOCK API]: Done fetching flight plan list");
   return new Promise((resolve) => {
@@ -94,7 +83,7 @@ export const getPlanList = () => {
         status: "success",
         timestamp: new Date().toISOString(),
         data: {
-          items: combinedPlans
+          items: serverPlans
         }
       });
     }, 1000);
@@ -108,22 +97,6 @@ export const getPlanDetails = (planId) => {
   console.log(`[MOCK API]: Done fetching details for plan: ${planId}`);
   return new Promise((resolve) => {
     setTimeout(() => {
-
-      // Check the frontend "database" first
-      const savedFlightPlans = useDroneStore.getState().savedFlightPlans;
-      const foundPlan = savedFlightPlans[planId];
-
-      if (foundPlan) {
-        console.log(`[MOCK API]: Found plan ${planId} in local store.`);
-        resolve({
-            type: "FLIGHT_PLAN_DATA",
-            status: "success",
-            timestamp: new Date().toISOString(),
-            data: foundPlan // Return the data we found in the store
-        });
-        return; // Exit early
-      }
-
       resolve({
         type: "FLIGHT_PLAN_DATA",
         status: "success",

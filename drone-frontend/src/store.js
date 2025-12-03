@@ -17,7 +17,8 @@ export const useDroneStore = create((set) => ({
     },
     settings: {
         system: {units: "metric", mapDisplay: "satellite", storeLog: true},
-        drone: {rthAltitude: 100, 
+        drone: {
+            rthAltitude: 100, 
             geofenceEnabled: true,
             homeLatitude: 36.737797,
             homeLongitude: -119.787125
