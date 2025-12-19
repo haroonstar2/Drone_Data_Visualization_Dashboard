@@ -1,9 +1,12 @@
 # Run using fastapi dev *name*
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware # Allows the frontend to make requests to the backend
 from pydantic import BaseModel, Field
 import datetime # For time stamping
 import uuid # For generating Ids
+import random
+import math
+import asyncio
 
 # Default port for Vite. Change if needed
 VITE_PORT = 5173 
@@ -183,17 +186,19 @@ async def save_plan(wrapper : FlightPlanWrapper):
 async def get_plans():
 
     plans = [
-        { "id": 'fp_12345', 
+        { 
+            "id": 'fp_12345', 
             "name": 'Field Survey Alpha', 
             "description": "Summary description...",
             "waypointCount": 3, 
             "lastModified": '2025-11-01T10:00:00Z' 
         },
-        { "id": 'fp_67890', 
-        "name": 'Perimeter Inspection', 
-        "description": "Summary description...",
-        "waypointCount": 8, 
-        "lastModified": '2025-10-30T15:20:00Z' 
+        { 
+            "id": 'fp_67890', 
+            "name": 'Perimeter Inspection', 
+            "description": "Summary description...",
+            "waypointCount": 8, 
+            "lastModified": '2025-10-30T15:20:00Z' 
         }
     ]
 
@@ -285,7 +290,114 @@ async def get_mission_details(mission_id: str):
         "data": payload
     }
 
+@app.websocket("/ws/telemetry")
+async def telemetry_websocket(websocket: WebSocket):
+    await websocket.accept()
+    print("Client connected to real-time stream.")
 
+    # Drone state (fast updates)
+    center_lat = 36.737797
+    center_lon = -119.787125
+    radius = 0.0005
+    angle = 0.0
+    altitude = 100.0
+    battery = 100.0
+    speed = 15.0
+    
+    # Environment state (slow updates)
+    wind_speed = 5.0
+    wind_heading = 90
+    temperature = 25.0
+
+    # Simulation loop counters
+    tick_count = 0
+
+    try:
+        while True:
+            # HIGH FREQUENCY TELEMETRY (Every tick: 0.1s)
+            angle += 0.05
+            current_lat = center_lat + (radius * math.sin(angle))
+            current_lon = center_lon + (radius * math.cos(angle))
+            current_alt = altitude + math.sin(angle * 3)
+            heading = (math.degrees(math.atan2(math.cos(angle), -math.sin(angle))) + 360) % 360
+            battery = max(0, battery - 0.02)
+
+            telemetry_packet = {
+                "type": "TELEMETRY_UPDATE", # Distinct Type Header for frontend to distinguish
+                "timestamp": datetime.datetime.now().isoformat(),
+                "payload": {
+                   "latitude": current_lat,
+                   "longitude": current_lon,
+                   "altitude": round(current_alt, 1),
+                   "speed": speed,
+                   "heading": round(heading),
+                   "battery": round(battery, 1),
+                }
+            }
+            await websocket.send_json(telemetry_packet)
+
+            # LOW FREQUENCY ENVIRONMENT (Every 50 ticks: 5.0s)
+            if tick_count % 50 == 0:
+                # Simulate slight weather shifting
+                wind_speed = max(0, wind_speed + random.uniform(-1, 1))
+                wind_heading = (wind_heading + random.uniform(-5, 5)) % 360
+                temperature = temperature + random.uniform(-0.1, 0.1)
+
+                env_packet = {
+                    "type": "ENVIRONMENT_UPDATE",
+                    "timestamp": datetime.datetime.now().isoformat(),
+                    "payload": {
+                        "windSpeed": round(wind_speed, 1),
+                        "windDirection": round(wind_heading),
+                        "temperature": round(temperature, 1),
+                        "weatherCondition": "Sunny"
+                    }
+                }
+                await websocket.send_json(env_packet)
+
+            # EVENT-DRIVEN LOGS and STATUS (Random chance) 1% chance per tick to generate a log message
+            if random.random() < 0.01:
+                log_levels = ["INFO", "WARN"]
+                log_packet = {
+                    "type": "NEW_LOG",
+                    "timestamp": datetime.datetime.now().isoformat(),
+                    "payload": {
+                        "timestamp": datetime.datetime.now().isoformat(),
+                        "level": random.choice(log_levels),
+                        "message": f"Simulated system event occurred at tick {tick_count}."
+                    }
+                }
+
+                armed = [True, False]
+                modes = ["MISSION", "IDLE", "GUIDED", "RTH"]
+
+                status_packet = {
+                    "type": "STATUS_UPDATE",
+                    "timestamp": "...",
+                    "payload": {
+                        "armed": random.choice(armed),
+                        "mode": random.choice(modes),
+                        "health": "OK"
+                    }
+                }
+
+                await websocket.send_json(log_packet)
+                await websocket.send_json(status_packet)
+            
+            # Loop management
+            tick_count += 1
+            await asyncio.sleep(0.1) # 10Hz update rate total
+
+    except WebSocketDisconnect:
+        print("Client disconnected from stream.")
+    except Exception as e:
+        print(f"WebSocket Error: {e}")
+        try:
+            await websocket.close()
+        except:
+            pass # Socket already closed
+
+# Test endpoint to see if backend is working
 @app.get("/api/status")
 async def get_status():
     return {

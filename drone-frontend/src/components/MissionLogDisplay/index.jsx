@@ -19,9 +19,9 @@ function MissionLogDisplay() {
         {logs.length === 0 && <p className="no-logs">No logs yet...</p>}
         
         {logs.map((log, index) => (
-          <div key={index} className={`log-entry log-${log.data.level.toLowerCase()}`}>
+          <div key={index} className={`log-entry log-${log.level.toLowerCase()}`}>
             <span className="log-time">[{log.timestamp}]</span>
-            <span className="log-msg">{log.data.message}</span>
+            <span className="log-msg">{log.message}</span>
           </div>
         ))}
         <div ref={endRef} />

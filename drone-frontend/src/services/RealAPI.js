@@ -108,9 +108,60 @@ export const getMissionLogs = (missionId) => {
   return request(`/missions/${missionId}`, { method: 'GET' });
 };
 
-//  PLACEHOLDERS FOR REAL-TIME (WEBSOCKETS)
-export const startSimulation = () => {
-  console.warn("[RealAPI] startSimulation called, but real-time data requires WebSockets implementation.");
-  // This would return the WebSocket connection object or cleanup function.
-  return null;
+export const startSimulation = (actions) => {
+
+  const host = window.location.host;
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const WS_FULL_URL = `${protocol}//${host}/ws/telemetry`;
+
+  const { updateTelemetry, addMissionLog, updateEnvironment } = actions;
+  
+  console.log(`[RealAPI] Connecting to WebSocket: ${WS_FULL_URL}`);
+  const socket = new WebSocket(WS_FULL_URL);
+
+  socket.onopen = () => {
+    console.log('[RealAPI] WebSocket Connected.');
+    addMissionLog({ timestamp: new Date().toISOString(), level: 'INFO', message: 'Connected to live stream.' });
+  };
+
+  socket.onmessage = (event) => {
+    try {
+        const message = JSON.parse(event.data);
+
+        // Switch based on the "type" header sent from Python
+        switch (message.type) {
+            case 'TELEMETRY_UPDATE':
+                // Payload is { latitude, longitude, altitude, ... }
+                updateTelemetry(message.payload);
+                break;
+            
+            case 'ENVIRONMENT_UPDATE':
+                 // Payload is { windSpeed, temperature, ... }
+                 updateEnvironment(message.payload);
+                 break;
+
+            case 'NEW_LOG':
+                // Payload is { timestamp, level, message }
+                addMissionLog(message.payload);
+                break;
+
+            default:
+                console.warn('[RealAPI] Unknown message type:', message.type);
+        }
+
+    } catch (err) {
+        console.error('[RealAPI] Message parse error:', err);
+    }
+  };
+
+  socket.onclose = () => {
+    console.log(`[RealAPI] WebSocket disconnected.`);
+  };
+
+  // Cleanup function
+  return () => {
+      if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+          socket.close();
+      }
+  };
 };

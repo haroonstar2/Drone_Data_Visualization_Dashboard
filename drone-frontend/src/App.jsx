@@ -7,7 +7,8 @@ import Settings from './components/Settings';
 import ListDetailModal from './components/_common/ListDetailModal';
 import { FlightPlanListView, FlightPlanDetailView } from './components/_common/views/FlightPlanModal';
 import { MissionListItem, HistoryLogDetailsView } from './components/_common/views/HistoryModal';
-import { startSimulation } from './services/MockAPI'; 
+// import { startSimulation } from './services/MockAPI'; 
+import { startSimulation } from './services/RealAPI';
 import { getSettings, getPlanList, getPlanDetails, getMissionHistory, getMissionLogs } from './services/RealAPI';
 import { useEffect, useState } from 'react';
 import { useDroneStore } from './store';
@@ -27,6 +28,12 @@ function App() {
   // Used to initially fetch data on start up
   const setGlobalSettings = useDroneStore((state) => state.updateSettings)
 
+  // Used for the Websocket connection
+  const updateTelemetry = useDroneStore((state) => state.updateTelemetry);
+  const addMissionLog = useDroneStore((state) => state.addMissionLog);
+  const updateEnvironment = useDroneStore((state) => state.updateEnvironment); 
+  const updateSettings = useDroneStore((state) => state.updateSettings);
+
   // Loads a plan into the editor
   const handleLoadPlan = (planDetails) => {
     console.log("Loading plan into editor:", planDetails.name);
@@ -43,8 +50,19 @@ function App() {
 
   // Start the telemetry simulation and fetch initial settings
   useEffect(() => {
-    console.log("Starting telemetry simulation...");
-    const id = startSimulation();
+    console.log("Starting real-time WebSocket connection...");
+
+    // Package all the actions
+    const storeActions = {
+          updateTelemetry,
+          addMissionLog,
+          updateEnvironment      
+    };
+
+    const cleanupSimulation = startSimulation(storeActions);
+
+    // console.log("Starting telemetry simulation...");
+    // const id = startSimulation();
 
     const fetchInitialSettings = async () => {
       console.log("Fetching Initial Settings");
@@ -59,7 +77,10 @@ function App() {
     };
     fetchInitialSettings();
 
-    return () => clearInterval(id);
+    // return () => clearInterval(id);
+    return () => {
+      cleanupSimulation();
+    }
   }, [setGlobalSettings]);
 
   return (
