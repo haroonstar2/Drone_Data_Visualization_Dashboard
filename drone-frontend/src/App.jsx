@@ -25,6 +25,10 @@ function App() {
   const setWaypoints = useDroneStore((state) => state.setWaypoints);
   const clearWaypoints = useDroneStore((state) => state.clearWaypoints);
 
+  // Functions to handle plan metadata
+  const setEditingPlan = useDroneStore((state) => state.setEditingPlan);
+  const clearEditingPlan = useDroneStore((state) => state.clearEditingPlan);
+
   // Used to initially fetch data on start up
   const setGlobalSettings = useDroneStore((state) => state.updateSettings)
 
@@ -34,16 +38,24 @@ function App() {
   const updateEnvironment = useDroneStore((state) => state.updateEnvironment); 
   const updateSettings = useDroneStore((state) => state.updateSettings);
 
-  // Loads a plan into the editor
-  const handleLoadPlan = (planDetails) => {
-    console.log("Loading plan into editor:", planDetails.name);
-    setWaypoints(planDetails.waypoints); // Load waypoints into the store
-    setAppMode('PLANNING'); // Set the global mode
+  const handleEditPlan = (planDetails) => {
+    console.log("Editing plan:", planDetails.name);
+    setWaypoints(planDetails.waypoints);
+    setEditingPlan(planDetails.id, planDetails.name, planDetails.description);
+    setAppMode('PLANNING'); 
+  };
+
+  const handleActivatePlan = (planDetails) => {
+    console.log("Activating plan:", planDetails.name);
+    setWaypoints(planDetails.waypoints);
+    clearEditingPlan(); 
+    setAppMode('idle');
   };
 
   // Starts a new plan
   const handleCreateNewPlan = () => {
     console.log("Starting new plan...");
+    clearEditingPlan();
     clearWaypoints(); // Clear any existing waypoints
     setAppMode('PLANNING'); // Set the global mode
   };
@@ -113,8 +125,9 @@ function App() {
         ListItemComponent={FlightPlanListView}
         DetailsComponent={FlightPlanDetailView} 
         
-        onItemSelect={handleLoadPlan} // This function is called when a plan is clicked
-        onCreateNew={handleCreateNewPlan} // This function is called to start a new plan
+        onItemSelect={handleEditPlan}       // "Edit/Load" button
+        onActivate={handleActivatePlan}     // "Activate" button
+        onCreateNew={handleCreateNewPlan}   // "Create New" button
       />
 
       {/* History Modal (using the same generic component) */}

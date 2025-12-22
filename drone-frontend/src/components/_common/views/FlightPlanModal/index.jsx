@@ -12,7 +12,7 @@ export function FlightPlanListView({ item, onClick }) {
     );
 }
 
-export function FlightPlanDetailView({ details, onConfirm, onClose }) {
+export function FlightPlanDetailView({ details, onConfirm, onActivate, onClose }) {
 
     const handleActivate = async () => {
         try {
@@ -23,6 +23,10 @@ export function FlightPlanDetailView({ details, onConfirm, onClose }) {
             });
             
             alert(response.message);
+
+            if (onActivate) {
+                onActivate(details);
+            }
             
             onClose(); 
         } 
@@ -45,7 +49,7 @@ export function FlightPlanDetailView({ details, onConfirm, onClose }) {
                 ))}
             </ul>
             <button className="btn-save" onClick={onConfirm}>
-                Edit / Load Plan
+                Edit Plan
             </button>
             <button className="btn btn-cancel" onClick={handleActivate}>
                 Activate

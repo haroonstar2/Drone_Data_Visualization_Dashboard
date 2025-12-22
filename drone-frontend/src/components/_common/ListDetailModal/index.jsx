@@ -11,6 +11,7 @@ function ListDetailModal({
     DetailsComponent,
 
     onItemSelect, // Function to run when an item is selected
+    onActivate, // Function to run when activating a plan
     onCreateNew,  // Function to run when "Create New" is clicked
 
 }) {
@@ -80,7 +81,7 @@ function ListDetailModal({
                         ))}
 
                         {onCreateNew && (
-                            <button className="btn btn-cancel" onClick={handleCreateNew}>
+                            <button className="btn btn-cancel" onClick={handleCreateNew} style={{width: "100%"}}>
                             Create New Plan
                             </button>
                         )} 
@@ -89,17 +90,18 @@ function ListDetailModal({
 
                 {view === 'detail' && (
                     <div className="details">
-                        <button onClick={() => setView('list')} className="btn btn-cancel">Back to list</button>
+                        <button onClick={() => setView('list')} className="btn btn-cancel" style={{ width: '100%' }}>Back to list</button>
                         <DetailsComponent 
                             details={selected} 
                             onClose={onClose}
                             onConfirm={handleConfirmSelection}
+                            onActivate={onActivate}
                         />
                     </div>
                 )}
 
                 <div className="plan-actions">
-                    <button onClick={onClose} className="btn btn-cancel">Close</button>
+                    <button onClick={onClose} className="btn btn-cancel" style={{ width: '100%' }}>Close</button>
                 </div>
             </div>
         </div>
