@@ -17,7 +17,8 @@ export function FlightPlanDetailView({ details, onConfirm, onActivate, onClose }
     const handleActivate = async () => {
         try {
             console.log(`Activating plan: ${details.id}`);
-
+            console.log("plan", details);
+            
             const response = await sendCommand('ACTIVATE_FLIGHT_PLAN', { 
                 flightPlanId: details.id 
             });

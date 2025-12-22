@@ -21,7 +21,7 @@ async function request(endpoint, options = {}) {
   };  
 
   console.log(`[RealAPI] ${config.method || 'GET'} request to: ${API_BASE_URL}${endpoint}`);
-  console.log(config.body);
+  console.log(`[RealAPI] Request body: ${config.body}`);
   
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
@@ -48,9 +48,9 @@ async function request(endpoint, options = {}) {
 }
 
 export const sendCommand = (commandName, commandData = {}) => {
-  
   const payload = {
     name: commandName,
+    ...commandData,
     // Map frontend "hover_duration" to the expected "hoverDuration" alias, if it exists
     ...(commandData.hover_duration && { hoverDuration: commandData.hover_duration })
   };

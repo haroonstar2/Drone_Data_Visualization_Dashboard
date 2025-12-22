@@ -4,9 +4,97 @@ from .database import engine, Mission, MissionLog
 
 class DroneSimulator:
     def __init__(self):
-        pass
+        print("DEBUG: DroneSimulator Instance Created")
+        # Shared state accessible by several files
+        self.lat = 36.737797
+        self.lon = -119.787125
+        self.alt = 0.0
+        self.heading = 0.0
+        self.speed = 0.0
+        self.battery = 100.0
+        
+        # Flight Logic State
+        self.active_waypoints = []
+        self.current_wp_index = -1
+        self.is_flying = False
+
+    def activate_mission(self, waypoints):
+        # Called by the API to start flying
+        self.active_waypoints = waypoints
+        self.current_wp_index = 0
+        self.is_flying = True
+        print(f"Simulator: Mission loaded with {len(waypoints)} waypoints.")
+
+    def update_physics(self, dt_seconds: float):
+        # Called by the loop to move the drone
+        if not self.is_flying or self.current_wp_index >= len(self.active_waypoints):
+            # Idle behavior
+            self.speed = 0.0
+            return
+        
+        target = self.active_waypoints[self.current_wp_index]
+
+        # Calculate distance to travel
+        distance = self.haversine(target.latitude, target.longitude, self.lat, self.lon) * 1000 # Km to m
+
+        # Check Arrival (5m tolerance)
+        if distance < 5.0:
+            self.current_wp_index += 1
+            if self.current_wp_index >= len(self.active_waypoints):
+                self.is_flying = False
+                print("Simulator: Mission Complete.")
+            return
+        
+        cruise_speed = 15.0 
+        self.speed = min(cruise_speed, distance) # Slow down if we are close
+        move_dist = self.speed * dt_seconds
+        
+        ratio = move_dist / distance
+
+        # NewPos = Current + (Diff * Ratio)
+        self.lat += (target.latitude - self.lat) * ratio
+        self.lon += (target.longitude - self.lon) * ratio
+        
+        # Update Altitude
+        alt_diff = target.altitude - self.alt
+        self.alt += alt_diff * 0.1 
+
+        # Calculate Headingby using atan2 to find the angle between current point and target
+        dLon = math.radians(target.longitude - self.lon)
+        y = math.sin(dLon) * math.cos(math.radians(target.latitude))
+        x = math.cos(math.radians(self.lat)) * math.sin(math.radians(target.latitude)) \
+            - math.sin(math.radians(self.lat)) * math.cos(math.radians(target.latitude)) * math.cos(dLon)
+        self.heading = (math.degrees(math.atan2(y, x)) + 360) % 360
+
+        # Drain Battery
+        self.battery = max(0, self.battery - 0.005)
+        
+    def haversine(self, lat1, lon1, lat2, lon2):
+        # This function was taken from GeeksforGeeks
+        # https://www.geeksforgeeks.org/dsa/haversine-formula-to-find-distance-between-two-points-on-a-sphere/#
+
+        # distance between latitudes
+        # and longitudes
+        dLat = (lat2 - lat1) * math.pi / 180.0
+        dLon = (lon2 - lon1) * math.pi / 180.0
+
+        # convert to radians
+        lat1 = (lat1) * math.pi / 180.0
+        lat2 = (lat2) * math.pi / 180.0
+
+        # apply formulae
+        a = (pow(math.sin(dLat / 2), 2) + 
+            pow(math.sin(dLon / 2), 2) * 
+                math.cos(lat1) * math.cos(lat2));
+        rad = 6371
+        c = 2 * math.asin(math.sqrt(a))
+        return rad * c
+
+drone_sim = DroneSimulator()
+
 
 async def run_telemetry_loop(websocket):
+    print("DEBUG: Telemetry Loop Started")
     # Create a database session manually since Websockets doesn't work with Depends()
     with Session(engine) as session:
         mission_id = str(uuid.uuid4())
@@ -28,7 +116,6 @@ async def run_telemetry_loop(websocket):
                 mission_created_in_db = True
                 print(f"Mission {mission_id} persisted to DB (Active session confirmed).")
 
-
         # Drone state (fast updates)
         center_lat = 36.737797
         center_lon = -119.787125
@@ -48,28 +135,25 @@ async def run_telemetry_loop(websocket):
 
         try:
             while True:
+
+                # Ask the class to update its position based on the active plan
+                drone_sim.update_physics(0.1)
+
                 # Save the mission at 20 ticks
                 if tick_count == 20: 
                     ensure_mission_exists()
 
                 # HIGH FREQUENCY TELEMETRY (Every tick: 0.1s)
-                angle += 0.05
-                current_lat = center_lat + (radius * math.sin(angle))
-                current_lon = center_lon + (radius * math.cos(angle))
-                current_alt = altitude + math.sin(angle * 3)
-                heading = (math.degrees(math.atan2(math.cos(angle), -math.sin(angle))) + 360) % 360
-                battery = max(0, battery - 0.02)
-
                 telemetry_packet = {
-                    "type": "TELEMETRY_UPDATE", # Distinct Type Header for frontend to distinguish
+                    "type": "TELEMETRY_UPDATE",
                     "timestamp": datetime.datetime.now().isoformat(),
                     "payload": {
-                    "latitude": current_lat,
-                    "longitude": current_lon,
-                    "altitude": round(current_alt, 1),
-                    "speed": speed,
-                    "heading": round(heading),
-                    "battery": round(battery, 1),
+                        "latitude": drone_sim.lat,       
+                        "longitude": drone_sim.lon,
+                        "altitude": round(drone_sim.alt, 1),
+                        "speed": round(drone_sim.speed, 1),
+                        "heading": round(drone_sim.heading),
+                        "battery": round(drone_sim.battery, 1),
                     }
                 }
                 await websocket.send_json(telemetry_packet)
