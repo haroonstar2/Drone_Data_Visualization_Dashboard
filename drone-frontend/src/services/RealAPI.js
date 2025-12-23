@@ -114,7 +114,7 @@ export const startSimulation = (actions) => {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const WS_FULL_URL = `${protocol}//${host}/ws/telemetry`;
 
-  const { updateTelemetry, addMissionLog, updateEnvironment } = actions;
+  const { updateTelemetry, addMissionLog, updateEnvironment, updateStatus } = actions;
   
   console.log(`[RealAPI] Connecting to WebSocket: ${WS_FULL_URL}`);
   const socket = new WebSocket(WS_FULL_URL);
@@ -145,6 +145,10 @@ export const startSimulation = (actions) => {
                 addMissionLog(message.payload);
                 break;
 
+            case 'STATUS_UPDATE':
+                // Payload is { armed, mode, health }
+                updateStatus(message.payload);
+                break;
             default:
                 console.warn('[RealAPI] Unknown message type:', message.type);
         }

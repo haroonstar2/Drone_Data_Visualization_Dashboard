@@ -10,8 +10,14 @@ function ControlButtons() {
   const storeLog = useDroneStore((state) => state.settings.system.storeLog);
   const activeWaypoints = useDroneStore((state) => state.activeWaypoints);
   const clearWaypoints = useDroneStore((state) => state.clearWaypoints);
+
+  const planId = useDroneStore((state) => state.planId);
+  const planName = useDroneStore((state) => state.planName);
+  const planDescription = useDroneStore((state) => state.planDescription);
+  const clearEditingPlan = useDroneStore((state) => state.clearEditingPlan);
+  const isFlying = useDroneStore((state) => state.isFlying);
   
-  const handleCommand = async (commandName) => {
+  const handleCommand = async (commandName, payload = {}) => {
     console.log(`Attempting to send command: ${commandName}`);
 
     try {
@@ -31,11 +37,15 @@ function ControlButtons() {
       // At this point its a network call instead
       let apiCommandType = "";
       // Default payload is empty unless specified otherwise
-      let apiPayload = {};
+      let apiPayload = payload;
 
       switch(commandName) {
-        case "Hover":
-          apiCommandType = "HOVER";
+        case "STOP_MISSION":
+          apiCommandType = "STOP_MISSION";
+          break;
+
+        case "START_MISSION": 
+          apiCommandType = "START_MISSION"; 
           break;
 
         case "Land":
@@ -76,52 +86,72 @@ function ControlButtons() {
   };
 
   const handleSavePlan = async () => {
-    const name = prompt("Enter a name for your flight plan:", "My New Plan");
-    const description = prompt("Enter a description of your flight plan:");
-    
-    if (name) {
-      const cleanWaypoints = activeWaypoints.map(wp => {
-        // Start with the base properties
-        const cleanWp = {
-          id: String(wp.id),
-          latitude: wp.latitude,
-          longitude: wp.longitude,
-          altitude: wp.altitude,
-          action: wp.action
-        };
-        
-        // Only include hoverDuration if the action is HOVER_T
-        if (wp.action === "HOVER_T") {
-            // Use existing duration or default to 5 if it's missing
-            cleanWp.hoverDuration = wp.hoverDuration || 5;
-        }
-        
-        return cleanWp;
-      });
 
-      const planData = {
-        name: name,
-        description: description || "",
-        waypoints: cleanWaypoints
+    let nameToUse = planName;
+    let descToUse = planDescription;
+
+    // Plan doesn't exist
+    if (!planId) {
+        nameToUse = prompt("Enter a name for your flight plan:", "My New Plan");
+        if (!nameToUse) return; // Cancelled
+        descToUse = prompt("Enter a description:", "");
+    } else {
+        // Plan exists
+
+        const confirmSave = window.confirm(`Overwrite changes to existing plan "${planName}"?`);
+        if (!confirmSave) return;
+
+        const renamed = prompt("Enter plan name (leave as is to keep current name):", planName);                
+        // If they hit Cancel on the rename prompt, assume they want to cancel the whole save.
+        if (renamed === null) return; 
+        
+        nameToUse = renamed;
+
+    }
+    const cleanWaypoints = activeWaypoints.map(wp => {
+      // Start with the base properties
+      const cleanWp = {
+        id: String(wp.id),
+        latitude: wp.latitude,
+        longitude: wp.longitude,
+        altitude: wp.altitude,
+        action: wp.action
       };
-      
-      try {
-        const response = await saveFlightPlan(planData);
-        alert(response.message);
-
-        // Go back to idle mode.
-        setAppMode('idle');
-
-      } catch (error) {
-        alert(`Failed to save plan: ${error}`);
+    
+      // Only include hoverDuration if the action is HOVER_T
+      if (wp.action === "HOVER_T") {
+          // Use existing duration or default to 5 if it's missing
+          cleanWp.hoverDuration = wp.hoverDuration || 5;
       }
+      return cleanWp;
+    });
+
+    const planData = {
+      // Pass the ID if it exists. 
+      id: planId, 
+      name: nameToUse,
+      description: descToUse || "",
+      waypoints: cleanWaypoints
+    };
+      
+    try {
+      const response = await saveFlightPlan(planData);
+      alert(response.message);
+
+      // Clear the edit state and return to idle
+      clearEditingPlan(); 
+      setAppMode('idle');
+
+    } catch (error) {
+      alert(`Failed to save plan: ${error}`);
     }
   };
 
   const handleCancelPlan = () => {
-    if (window.confirm("Are you sure? All unsaved waypoints will be lost.")) {
+    if (confirm("Are you sure? All unsaved waypoints will be lost.")) {
       setAppMode('idle');
       clearWaypoints();
+      clearEditingPlan(); // Clear the ID in memory
     }
   };
 
@@ -153,11 +183,12 @@ function ControlButtons() {
         Start/End Logging
       </button>
       
-      <button onClick={() => handleCommand('Hover')}>Hover</button>
+      <button onClick={() => handleCommand(isFlying ? 'STOP_MISSION' : 'START_MISSION')}>
+        {isFlying ? "Pause Mission" : "Start Mission"}
+      </button>
       <button onClick={() => handleCommand('Land')}>Land</button>
-      <button className="home-button" onClick={() => handleCommand('Return to Home')}>🏠</button>
+      <button onClick={() => handleCommand('Return to Home')}>Home</button>
     </div>
   );
 }
-
 export default ControlButtons;

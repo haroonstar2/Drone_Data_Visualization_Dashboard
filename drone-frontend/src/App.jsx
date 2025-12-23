@@ -7,8 +7,7 @@ import Settings from './components/Settings';
 import ListDetailModal from './components/_common/ListDetailModal';
 import { FlightPlanListView, FlightPlanDetailView } from './components/_common/views/FlightPlanModal';
 import { MissionListItem, HistoryLogDetailsView } from './components/_common/views/HistoryModal';
-// import { startSimulation } from './services/MockAPI'; 
-import { startSimulation } from './services/RealAPI';
+import { sendCommand, startSimulation } from './services/RealAPI';
 import { getSettings, getPlanList, getPlanDetails, getMissionHistory, getMissionLogs } from './services/RealAPI';
 import { useEffect, useState } from 'react';
 import { useDroneStore } from './store';
@@ -36,10 +35,16 @@ function App() {
   const updateTelemetry = useDroneStore((state) => state.updateTelemetry);
   const addMissionLog = useDroneStore((state) => state.addMissionLog);
   const updateEnvironment = useDroneStore((state) => state.updateEnvironment); 
+  const updateStatus = useDroneStore((state) => state.updateStatus);
   const updateSettings = useDroneStore((state) => state.updateSettings);
 
   const handleEditPlan = (planDetails) => {
     console.log("Editing plan:", planDetails.name);
+
+    // Stop the drone during editing
+    sendCommand('STOP_MISSION');
+
+    // Load new data
     setWaypoints(planDetails.waypoints);
     setEditingPlan(planDetails.id, planDetails.name, planDetails.description);
     setAppMode('PLANNING'); 
@@ -68,7 +73,8 @@ function App() {
     const storeActions = {
           updateTelemetry,
           addMissionLog,
-          updateEnvironment      
+          updateEnvironment,
+          updateStatus      
     };
 
     const cleanupSimulation = startSimulation(storeActions);

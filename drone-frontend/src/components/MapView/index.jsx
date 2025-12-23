@@ -97,12 +97,7 @@ function MapView() {
   
   return (
     <div className={mapClassName}>
-      
-      {/* Show a prompt when in adding mode */}
-      {isPlanningMode && (
-        <div className="map-prompt">Click on the map to add a waypoint...</div>
-      )}
-      
+            
       <MapContainer 
         center={dronePosition} 
         zoom={17} 

@@ -35,6 +35,7 @@ export const useDroneStore = create((set) => ({
     planId: null,
     planName: "",
     planDescription: "",
+    isFlying: false,
 
     updateTelemetry: (newTelemetryData) => set((state) => ({
         telemetry: {
@@ -47,7 +48,8 @@ export const useDroneStore = create((set) => ({
         droneStatus: {
             ...state.droneStatus,
             ...newStatusData
-        }
+        },
+        isFlying: Boolean(newStatusData.armed)
     })),
 
     updateSettings: (newSettings) => set((state) => ({

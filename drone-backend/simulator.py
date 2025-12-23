@@ -4,6 +4,9 @@ from .database import engine, Mission, MissionLog
 
 class DroneSimulator:
     def __init__(self):
+        self.reset()
+
+    def reset(self):
         print("DEBUG: DroneSimulator Instance Created")
         # Shared state accessible by several files
         self.lat = 36.737797
@@ -15,15 +18,45 @@ class DroneSimulator:
         
         # Flight Logic State
         self.active_waypoints = []
+        self.saved_mission = []
         self.current_wp_index = -1
         self.is_flying = False
+        self.is_returning_home = False
+        print("Simulator: Reset to Home State.")
 
     def activate_mission(self, waypoints):
-        # Called by the API to start flying
+        # Called by the API to load mission data but do not start flying
         self.active_waypoints = waypoints
         self.current_wp_index = 0
+        self.is_flying = False 
+        print(f"Simulator: Mission loaded with {len(waypoints)} waypoints. Waiting for Start command.")
+
+    def start_mission(self):
+        print(f"DEBUG: COMMAND Received on Instance ID: {id(self)}")
+        if len(self.active_waypoints) > 0:
+            self.is_flying = True
+            print("Simulator: Mission Started.")
+        else:
+            print("Simulator: No mission loaded to start.")
+
+    def return_to_home(self):
+        # If a real mission loaded (and aren't already going home), save a backup
+        if not self.is_returning_home and len(self.active_waypoints) > 0:
+            self.saved_mission = self.active_waypoints
+            print(f"Simulator: Stashed mission with {len(self.saved_mission)} waypoints.")
+
+        # Create a temporary "Home" waypoint object
+        class HomeWaypoint:
+            latitude = 36.737797
+            longitude = -119.787125
+            altitude = 50.0 # Return at a safe altitude
+            
+        # Home as the only active waypoint
+        self.active_waypoints = [HomeWaypoint()]
+        self.current_wp_index = 0
         self.is_flying = True
-        print(f"Simulator: Mission loaded with {len(waypoints)} waypoints.")
+        self.is_returning_home = True
+        print("Simulator: RTH Initiated. Flying to Home coordinates.")
 
     def update_physics(self, dt_seconds: float):
         # Called by the loop to move the drone
@@ -42,6 +75,19 @@ class DroneSimulator:
             self.current_wp_index += 1
             if self.current_wp_index >= len(self.active_waypoints):
                 self.is_flying = False
+
+                if self.is_returning_home:
+                    print("Simulator: Arrived at Home.")
+                    
+                    # Restore the original mission
+                    if len(self.saved_mission) > 0:
+                        self.active_waypoints = self.saved_mission
+                        self.saved_mission = [] # Clear backup
+                        self.current_wp_index = 0 # Reset index to start
+                        print("Simulator: Original Mission Reloaded. Ready to Start.")
+                    
+                    self.is_returning_home = False
+            else:
                 print("Simulator: Mission Complete.")
             return
         
@@ -89,12 +135,15 @@ class DroneSimulator:
         rad = 6371
         c = 2 * math.asin(math.sqrt(a))
         return rad * c
-
+    
 drone_sim = DroneSimulator()
 
-
 async def run_telemetry_loop(websocket):
+
     print("DEBUG: Telemetry Loop Started")
+
+    print(f"DEBUG: LOOP Running on Instance ID: {id(drone_sim)}")
+
     # Create a database session manually since Websockets doesn't work with Depends()
     with Session(engine) as session:
         mission_id = str(uuid.uuid4())
@@ -116,14 +165,6 @@ async def run_telemetry_loop(websocket):
                 mission_created_in_db = True
                 print(f"Mission {mission_id} persisted to DB (Active session confirmed).")
 
-        # Drone state (fast updates)
-        center_lat = 36.737797
-        center_lon = -119.787125
-        radius = 0.0005
-        angle = 0.0
-        altitude = 100.0
-        battery = 100.0
-        speed = 15.0
         
         # Environment state (slow updates)
         wind_speed = 5.0
@@ -157,6 +198,19 @@ async def run_telemetry_loop(websocket):
                     }
                 }
                 await websocket.send_json(telemetry_packet)
+
+                # MEDIUM FREQUENCY STATUS (Every 5 ticks: 0.5s)
+                if tick_count % 5 == 0:
+                    status_packet = {
+                        "type": "STATUS_UPDATE",
+                        "timestamp": datetime.datetime.now().isoformat(),
+                        "payload": {
+                            "armed": drone_sim.is_flying,
+                            "mode": "MISSION" if drone_sim.is_flying else "IDLE",
+                            "health": "OK"
+                        }
+                    }
+                    await websocket.send_json(status_packet)
 
 
                 # LOW FREQUENCY ENVIRONMENT (Every 50 ticks: 5.0s)
@@ -208,23 +262,7 @@ async def run_telemetry_loop(websocket):
                     )
                     session.add(db_log)
                     session.commit()
-
-                    armed = [True, False]
-                    modes = ["MISSION", "IDLE", "GUIDED", "RTH"]
-
-                    status_packet = {
-                        "type": "STATUS_UPDATE",
-                        "timestamp": "...",
-                        "payload": {
-                            "armed": random.choice(armed),
-                            "mode": random.choice(modes),
-                            "health": "OK"
-                        }
-                    }
-
-                    await websocket.send_json(status_packet)
                 
-
                 # Update Mission Duration every 100 ticks (10 seconds)
                 if tick_count % 100 == 0 and mission_created_in_db:
                     current_duration = (datetime.datetime.now() - start_time).seconds

@@ -15,7 +15,7 @@ async def post_commands(wrapper : CommandWrapper, session: Session = Depends(get
     command_data = wrapper.command
 
     print(f"DEBUG: Command Received: {command_data.name}")
-    print(f"DEBUG: Flight Plan ID in Payload: {command_data.flight_plan_id}")
+    print(f"DEBUG: Payload: {command_data}")
 
     # Default message
     message = f"Received {command_data.name} successfully"
@@ -35,6 +35,29 @@ async def post_commands(wrapper : CommandWrapper, session: Session = Depends(get
         else:
             print(f"DEBUG: Plan ID {command_data.flight_plan_id} NOT FOUND in DB.")
             message = "Error: Flight Plan not found in database."
+
+    elif command_data.name == "START_MISSION":
+        drone_sim.start_mission()
+        message = "Mission execution started."
+
+    elif command_data.name == "STOP_MISSION":
+        drone_sim.is_flying = False
+        message = "Mission paused. Drone hovering."
+
+    elif command_data.name == "ABORT_MISSION":
+        drone_sim.is_flying = False
+        drone_sim.active_waypoints = []
+        message = "Mission aborted. Drone hovering."
+
+    elif command_data.name == "LAND":
+        drone_sim.is_flying = False
+        drone_sim.alt = 0 
+        message = "Landing initiated."
+
+    elif command_data.name == "RETURN_TO_HOME":
+        drone_sim.return_to_home()
+        message = "Returning to Home. Original plan will be restored upon arrival."
+
     else:
         print("DEBUG: Condition failed. Either name mismatch or no ID.")
 
