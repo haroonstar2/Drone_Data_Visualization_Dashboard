@@ -98,6 +98,16 @@ export const useDroneStore = create((set) => ({
         )
     })),
 
+    updateWaypointPosition: (id, newLat, newLng) => set((state) => ({
+        activeWaypoints: state.activeWaypoints.map((wp) => 
+        // If ID matches, create a new object with updated lat/lon
+        // If not, keep the waypoint as is
+        wp.id === id 
+            ? { ...wp, latitude: newLat, longitude: newLng } 
+            : wp
+        )
+     })),
+
     removeWaypoint: (waypointId) => set((state) => ({
         activeWaypoints: state.activeWaypoints.filter(wp => wp.id !== waypointId)
     })),

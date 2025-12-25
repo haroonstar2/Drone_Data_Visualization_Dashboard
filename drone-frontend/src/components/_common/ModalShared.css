@@ -87,3 +87,13 @@
   justify-content: space-between;
   align-items: center;
 }
+
+.scroll {
+  max-height: 400px;
+  overflow-y: auto;
+  background: #f4f4f4;
+  padding: 10px;
+  border-radius: 5px;
+  border: 1px solid #ddd;
+  margin-bottom: 15px;
+}

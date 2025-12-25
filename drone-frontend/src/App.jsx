@@ -76,11 +76,7 @@ function App() {
           updateEnvironment,
           updateStatus      
     };
-
     const cleanupSimulation = startSimulation(storeActions);
-
-    // console.log("Starting telemetry simulation...");
-    // const id = startSimulation();
 
     const fetchInitialSettings = async () => {
       console.log("Fetching Initial Settings");

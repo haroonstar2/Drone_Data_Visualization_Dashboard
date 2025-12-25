@@ -1,7 +1,8 @@
 import './MapView.css';
 import { useDroneStore } from '../../store'; 
+import { useMemo, useRef } from 'react';
 import { sendCommand } from '../../services/RealAPI'; 
-import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents, CircleMarker } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents, CircleMarker, Polyline } from 'react-leaflet';
 import L from 'leaflet';
 import { WAYPOINT_ACTIONS, ACTION_OPTIONS } from '../waypointActions';
 
@@ -34,6 +35,7 @@ function MapView() {
   const addWaypoint = useDroneStore((state) => state.addWaypoint);
   const removeWaypoint = useDroneStore((state) => state.removeWaypoint);
   const updateWaypoint = useDroneStore((state) => state.updateWaypoint);
+  const updateWaypointPosition = useDroneStore((state) => state.updateWaypointPosition);
 
   const settings = useDroneStore((state) => state.settings);
   const dronePosition = [telemetry.latitude, telemetry.longitude];
@@ -92,9 +94,20 @@ function MapView() {
     }
   }
 
+  const handleDrag = (id, e) => {
+        const marker = e.target;
+        const newPos = marker.getLatLng();
+        console.log(`Waypoint ${id} moved to:`, newPos);
+        
+        // Update the store
+        updateWaypointPosition(id, newPos.lat, newPos.lng);
+  };
+
   const mapClassName = `map-view ${appMode === 'adding_waypoint' ? 'crosshair-cursor' : ''}`;
   const isPlanningMode = appMode === 'PLANNING' || appMode === 'adding_waypoint';
-  
+  const flightPath = activeWaypoints.map(wp => [wp.latitude, wp.longitude]);
+
+
   return (
     <div className={mapClassName}>
             
@@ -140,6 +153,8 @@ function MapView() {
         <Marker 
           key={wp.id} // Use the unique ID for the key
           position={[wp.latitude, wp.longitude]}
+          draggable={appMode === 'PLANNING' || appMode === 'adding_waypoint'}
+          eventHandlers={{drag: (e) => handleDrag(wp.id, e)}}
          >
           <Popup>
 
@@ -208,6 +223,13 @@ function MapView() {
           </Popup>
         </Marker>
       ))}
+
+      {activeWaypoints.length > 1 && (
+        <Polyline 
+            positions={flightPath} 
+            color="blue" 
+        />
+      )}
 
 
       {/* <div className="map-overlay">

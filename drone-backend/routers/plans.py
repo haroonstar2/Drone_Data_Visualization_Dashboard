@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session, select
+from sqlmodel import Session, select, desc
 from ..database import get_session, FlightPlan, Waypoint
 from ..models import FlightPlanWrapper
+from ..simulator import drone_sim
 import uuid, datetime
 
 router = APIRouter()
@@ -62,6 +63,16 @@ async def save_plan(wrapper : FlightPlanWrapper, session: Session = Depends(get_
     session.refresh(db_plan)
     print(f"Saved Plan {plan_id} with {len(db_plan.waypoints)} waypoints to Database.")
 
+    # Check if the simulator is currently holding this plan
+    if drone_sim.active_plan_id == str(plan_id):
+        print(f"DEBUG: Hot-reloading active plan {plan_id} in simulator.")
+
+        sorted_wps = sorted(db_plan.waypoints, key=lambda w: w.order)
+        
+        # Update the simulator directly
+        drone_sim.active_waypoints = sorted_wps
+
+
     return {
         "type": "FLIGHT_PLAN_SAVED",
         "status": "success",
@@ -84,7 +95,7 @@ async def save_plan(wrapper : FlightPlanWrapper, session: Session = Depends(get_
 async def get_plans(session: Session = Depends(get_session)):
 
     # SQL: SELECT * FROM flightplan
-    statement = select(FlightPlan)
+    statement = select(FlightPlan).order_by(FlightPlan.last_modified.desc())
     results = session.exec(statement).all()
 
     # Convert DB objects to format frontend expects

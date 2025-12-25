@@ -17,6 +17,7 @@ class DroneSimulator:
         self.battery = 100.0
         
         # Flight Logic State
+        self.active_plan_id = None
         self.active_waypoints = []
         self.saved_mission = []
         self.current_wp_index = -1
@@ -24,12 +25,13 @@ class DroneSimulator:
         self.is_returning_home = False
         print("Simulator: Reset to Home State.")
 
-    def activate_mission(self, waypoints):
+    def activate_mission(self, waypoints, plan_id=None):
         # Called by the API to load mission data but do not start flying
+        self.active_plan_id = plan_id
         self.active_waypoints = waypoints
         self.current_wp_index = 0
         self.is_flying = False 
-        print(f"Simulator: Mission loaded with {len(waypoints)} waypoints. Waiting for Start command.")
+        print(f"Simulator: Mission {plan_id} loaded with {len(waypoints)} waypoints. Waiting for Start command.")
 
     def start_mission(self):
         print(f"DEBUG: COMMAND Received on Instance ID: {id(self)}")

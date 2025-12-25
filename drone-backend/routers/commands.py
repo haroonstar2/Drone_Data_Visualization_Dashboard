@@ -28,7 +28,7 @@ async def post_commands(wrapper : CommandWrapper, session: Session = Depends(get
             sorted_wps = sorted(plan.waypoints, key=lambda w: w.order)
             
             # This updates the state inside 'simulator.py'
-            drone_sim.activate_mission(sorted_wps)
+            drone_sim.activate_mission(sorted_wps, plan_id=str(plan.id))
 
             # Update the message so the UI shows something cool
             message = f"Mission '{plan.name}' activated. Takeoff initialized."

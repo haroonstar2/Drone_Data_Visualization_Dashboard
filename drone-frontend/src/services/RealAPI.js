@@ -116,56 +116,133 @@ export const startSimulation = (actions) => {
 
   const { updateTelemetry, addMissionLog, updateEnvironment, updateStatus } = actions;
   
-  console.log(`[RealAPI] Connecting to WebSocket: ${WS_FULL_URL}`);
-  const socket = new WebSocket(WS_FULL_URL);
+  // Flag to stop reconnection if component unmount
+  // Variables to manage connection state
+  let socket = null;
+  let reconnectTimeout = null;
+  let isClosed = false;
 
-  socket.onopen = () => {
-    console.log('[RealAPI] WebSocket Connected.');
-    addMissionLog({ timestamp: new Date().toISOString(), level: 'INFO', message: 'Connected to live stream.' });
-  };
+  const connect = () => {
 
-  socket.onmessage = (event) => {
-    try {
-        const message = JSON.parse(event.data);
+    if (isClosed) return false;
 
-        // Switch based on the "type" header sent from Python
-        switch (message.type) {
-            case 'TELEMETRY_UPDATE':
-                // Payload is { latitude, longitude, altitude, ... }
-                updateTelemetry(message.payload);
-                break;
-            
-            case 'ENVIRONMENT_UPDATE':
-                 // Payload is { windSpeed, temperature, ... }
-                 updateEnvironment(message.payload);
-                 break;
+    console.log(`[RealAPI] Connecting to WebSocket: ${WS_FULL_URL}`);
+    socket = new WebSocket(WS_FULL_URL);
 
-            case 'NEW_LOG':
-                // Payload is { timestamp, level, message }
-                addMissionLog(message.payload);
-                break;
+    socket.onopen = () => {
+      console.log('[RealAPI] WebSocket Connected.');
+      addMissionLog({ timestamp: new Date().toISOString(), level: 'INFO', message: 'Connected to live stream.' });
+    };
 
-            case 'STATUS_UPDATE':
-                // Payload is { armed, mode, health }
-                updateStatus(message.payload);
-                break;
-            default:
-                console.warn('[RealAPI] Unknown message type:', message.type);
-        }
+    socket.onmessage = (event) => {
+      try {
+          const message = JSON.parse(event.data);
 
-    } catch (err) {
-        console.error('[RealAPI] Message parse error:', err);
+          // Switch based on the "type" header sent from backend
+          switch (message.type) {
+              case 'TELEMETRY_UPDATE':
+                  // Payload is { latitude, longitude, altitude, ... }
+                  updateTelemetry(message.payload);
+                  break;
+              
+              case 'ENVIRONMENT_UPDATE':
+                  // Payload is { windSpeed, temperature, ... }
+                  updateEnvironment(message.payload);
+                  break;
+
+              case 'NEW_LOG':
+                  // Payload is { timestamp, level, message }
+                  addMissionLog(message.payload);
+                  break;
+
+              case 'STATUS_UPDATE':
+                  // Payload is { armed, mode, health }
+                  updateStatus(message.payload);
+                  break;
+              default:
+                  console.warn('[RealAPI] Unknown message type:', message.type);
+          }
+
+      } catch (err) {
+          console.error('[RealAPI] Message parse error:', err);
+      }
     }
-  };
 
   socket.onclose = () => {
-    console.log(`[RealAPI] WebSocket disconnected.`);
+
+    if (isClosed) {
+      console.log(`[RealAPI] WebSocket intentionally disconnected.`);
+      return;
+    }
+
+    console.warn(`[RealAPI] WebSocket disconnected. Retrying in 3 seconds...`);
+
+    reconnectTimeout = setTimeout(() => {
+      connect();
+    }, 3000);
+
+  };
   };
 
-  // Cleanup function
+  connect();
+
   return () => {
-      if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
-          socket.close();
-      }
+      isClosed = true; // Stop the loop
+      if (reconnectTimeout) clearTimeout(reconnectTimeout); // Cancel pending retries
+      if (socket) socket.close(); // Close active connection
   };
 };
+
+
+  // console.log(`[RealAPI] Connecting to WebSocket: ${WS_FULL_URL}`);
+  // const socket = new WebSocket(WS_FULL_URL);
+
+  // socket.onopen = () => {
+  //   console.log('[RealAPI] WebSocket Connected.');
+  //   addMissionLog({ timestamp: new Date().toISOString(), level: 'INFO', message: 'Connected to live stream.' });
+  // };
+
+  // socket.onmessage = (event) => {
+  //   try {
+  //       const message = JSON.parse(event.data);
+
+  //       // Switch based on the "type" header sent from Python
+  //       switch (message.type) {
+  //           case 'TELEMETRY_UPDATE':
+  //               // Payload is { latitude, longitude, altitude, ... }
+  //               updateTelemetry(message.payload);
+  //               break;
+            
+  //           case 'ENVIRONMENT_UPDATE':
+  //                // Payload is { windSpeed, temperature, ... }
+  //                updateEnvironment(message.payload);
+  //                break;
+
+  //           case 'NEW_LOG':
+  //               // Payload is { timestamp, level, message }
+  //               addMissionLog(message.payload);
+  //               break;
+
+  //           case 'STATUS_UPDATE':
+  //               // Payload is { armed, mode, health }
+  //               updateStatus(message.payload);
+  //               break;
+  //           default:
+  //               console.warn('[RealAPI] Unknown message type:', message.type);
+  //       }
+
+  //   } catch (err) {
+  //       console.error('[RealAPI] Message parse error:', err);
+  //   }
+  // };
+
+  // socket.onclose = () => {
+  //   console.log(`[RealAPI] WebSocket disconnected.`);
+  // };
+
+  // // Cleanup function
+  // return () => {
+  //     if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+  //         socket.close();
+  //     }
+  // };

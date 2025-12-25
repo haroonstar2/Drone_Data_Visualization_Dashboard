@@ -73,7 +73,7 @@ function ListDetailModal({
                 <h2>{title}</h2>
 
                 {view === 'list' && (
-                    <div className="list-content">
+                    <div className="list-content scroll">
                         {list.map(item => (
                             <div key={item.id} className="plan-item">
                                 <ListItemComponent item={item} onClick={() => handleSelect(item)} />
