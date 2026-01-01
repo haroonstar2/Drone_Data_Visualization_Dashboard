@@ -6,6 +6,24 @@ class DroneSimulator:
     def __init__(self):
         self.reset()
 
+        # Drone settings
+        self.rth_altitude = 100.0
+        self.geofence_enabled = True
+        self.geofence_radius = 5000.0 # Meters from home
+        self.home_lat = 36.737797
+        self.home_lon = -119.787125
+
+        # Log buffer
+        self.pending_logs = []
+    
+    def update_settings(self, settings_data):
+        # Called by the API to update physics constraints
+        self.rth_altitude = settings_data.rthAltitude
+        self.geofence_enabled = settings_data.geofenceEnabled
+        self.home_lat = settings_data.homeLatitude
+        self.home_lon = settings_data.homeLongitude
+        print(f"Simulator: Settings Updated. RTH set to {self.rth_altitude}m")
+
     def reset(self):
         print("DEBUG: DroneSimulator Instance Created")
         # Shared state accessible by several files
@@ -38,6 +56,7 @@ class DroneSimulator:
         if len(self.active_waypoints) > 0:
             self.is_flying = True
             print("Simulator: Mission Started.")
+            self.pending_logs.append(("INFO", "Mission Started."))
         else:
             print("Simulator: No mission loaded to start.")
 
@@ -75,11 +94,14 @@ class DroneSimulator:
         # Check Arrival (5m tolerance)
         if distance < 5.0:
             self.current_wp_index += 1
+            self.pending_logs.append(("INFO", f"Arrived at Waypoint {self.current_wp_index}"))
+
             if self.current_wp_index >= len(self.active_waypoints):
                 self.is_flying = False
 
                 if self.is_returning_home:
                     print("Simulator: Arrived at Home.")
+                    self.pending_logs.append(("INFO", "Arrived at Home."))
                     
                     # Restore the original mission
                     if len(self.saved_mission) > 0:
@@ -89,8 +111,12 @@ class DroneSimulator:
                         print("Simulator: Original Mission Reloaded. Ready to Start.")
                     
                     self.is_returning_home = False
-            else:
-                print("Simulator: Mission Complete.")
+                else:
+                    print("Mission Complete. Disarming.")
+                    self.pending_logs.append(("INFO", "Mission Complete. Disarming."))
+
+
+
             return
         
         cruise_speed = 15.0 
@@ -116,6 +142,15 @@ class DroneSimulator:
 
         # Drain Battery
         self.battery = max(0, self.battery - 0.005)
+        if 19.9 < self.battery < 20.0: # Catch it exactly once as it crosses down
+             self.pending_logs.append(("WARN", "Low Battery Warning (20%)"))
+
+        if self.geofence_enabled and self.is_flying:
+            dist_home = self.haversine(self.lat, self.lon, self.home_lat, self.home_lon) * 1000
+            if dist_home > self.geofence_radius:
+                self.pending_logs.append(("WARN", "Geofence breached! Triggering RTH."))
+                self.return_to_home()
+
         
     def haversine(self, lat1, lon1, lat2, lon2):
         # This function was taken from GeeksforGeeks
@@ -182,6 +217,25 @@ async def run_telemetry_loop(websocket):
                 # Ask the class to update its position based on the active plan
                 drone_sim.update_physics(0.1)
 
+                # Flush pending logs to the frontend
+                while len(drone_sim.pending_logs) > 0:
+                    level, msg = drone_sim.pending_logs.pop(0) 
+                    timestamp = datetime.datetime.now().isoformat()
+                    
+                    # Send to Frontend
+                    log_packet = {
+                        "type": "NEW_LOG", 
+                        "timestamp": timestamp,
+                        "payload": { "timestamp": timestamp, "level": level, "message": msg }
+                    }
+                    await websocket.send_json(log_packet)
+                    
+                    # Save to Database
+                    ensure_mission_exists()
+                    db_log = MissionLog(mission_id=mission_id, timestamp=timestamp, level=level, message=msg)
+                    session.add(db_log)
+                    session.commit()
+
                 # Save the mission at 20 ticks
                 if tick_count == 20: 
                     ensure_mission_exists()
@@ -234,37 +288,6 @@ async def run_telemetry_loop(websocket):
                     }
                     await websocket.send_json(env_packet)
 
-                # EVENT-DRIVEN LOGS and STATUS (Random chance) 1% chance per tick to generate a log message
-                if random.random() < 0.01:
-                    ensure_mission_exists()
-
-                    log_levels = ["INFO", "WARN"]
-                    level = random.choice(log_levels)
-                    message = f"Simulated system event occurred at tick {tick_count}"
-                    timestamp = datetime.datetime.now().isoformat()
-
-                    # Send the packet to the frontend
-                    log_packet = {
-                        "type": "NEW_LOG",
-                        "timestamp": timestamp,
-                        "payload": {
-                            "timestamp": timestamp,
-                            "level": level,
-                            "message": message
-                        }
-                    }
-                    await websocket.send_json(log_packet)
-
-                    # Save the log to the database 
-                    db_log = MissionLog(
-                        mission_id=mission_id,
-                        timestamp=timestamp,
-                        level=level,
-                        message=message
-                    )
-                    session.add(db_log)
-                    session.commit()
-                
                 # Update Mission Duration every 100 ticks (10 seconds)
                 if tick_count % 100 == 0 and mission_created_in_db:
                     current_duration = (datetime.datetime.now() - start_time).seconds
