@@ -1,4 +1,10 @@
-# Run using fastapi dev *name*
+# Run backend with 
+# fastapi dev
+
+# Run the copter with this 
+# source ~/ardupilot/venv/bin/activate
+# ~/ardupilot/Tools/autotest/sim_vehicle.py -v ArduCopter
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware # Allows the frontend to make requests to the backend
 from contextlib import asynccontextmanager
@@ -45,11 +51,6 @@ app.add_middleware(
 )
 
 # Include routers
-# app.include_router(commands)
-# app.include_router(settings)
-# app.include_router(plans)
-# app.include_router(missions)
-# app.include_router(telemetry)
 app.include_router(commands_router)
 app.include_router(settings_router)
 app.include_router(plans_router)
