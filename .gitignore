@@ -29,3 +29,7 @@ venv/
 __pycache__/
 *.py[cod]
 .vite
+
+*mav*
+*.DAT
+*.bin

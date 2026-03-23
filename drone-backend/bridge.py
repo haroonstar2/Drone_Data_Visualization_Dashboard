@@ -1,10 +1,18 @@
 """Takes backend calls and translates them to Mavlink commands for the drone"""
 from pymavlink import mavutil
 import time
+import threading
 
 # pymavlink is interesting because the MAVLink messages live in a giant XML file and autogenerates functions for them
 # .mav is the place where these functions are stored
 # .mav and .mav.set_mode_send don't have a type since they technically don't exist yet ???
+
+# The Golden Rule of pymavlink
+#     - If it starts with MAV_CMD_ (like MAV_CMD_NAV_TAKEOFF), it is a MAVLink command so it should use the send_command function
+#     - If it does NOT start with MAV_CMD_ (like MISSION_COUNT, PARAM_SET, or RC_CHANNELS_OVERRIDE), it is a native message
+#       and must be called directly using self.drone.mav.[message_name]_send().
+
+# recv_match() waits for and intercepts messages as they arrive
 
 # DroneError is subclassed from Exception. Other error are subclassed from DroneError.
 # Can use the more specific error if needed.
@@ -24,12 +32,23 @@ class DroneModeError(DroneError):
     """Raised when the drone fails to set the mode."""
     pass
 
-
 class DroneBridge:
     def __init__(self, connection_string: str ='udpin:127.0.0.1:14550', heartbeat_timeout: int =15):
 
         self.drone = None
         self.timeout = heartbeat_timeout
+        self.is_uploading = False
+
+        self.telemetry = {
+            "lat": 0.0,
+            "lon": 0.0,
+            "alt": 0.0,
+            "speed": 0.0,
+            "heading": 0.0,
+            "battery": 0,
+            "armed": False,
+            "mode": "UNKNOWN"
+        }
 
         print(f"DEBUG: Bridge connecting to drone at {connection_string}")
 
@@ -49,6 +68,10 @@ class DroneBridge:
         
         print("DEBUG: Connected to drone (heartbeat received)")
 
+        print("DEBUG: Creating telemetry thread...")
+        self.listener_thread = threading.Thread(target=self.telemetry_loop, daemon=True)
+        self.listener_thread.start()
+
     def wait_for_heartbeat(self, timeout_s: float) -> bool:
         """
         Returns True if a heartbeat is received within the timeout, False otherwise.
@@ -60,6 +83,50 @@ class DroneBridge:
             time.sleep(0.01)
 
         return False
+
+    # Link to the MAVLink documentation for more information on recieving data
+    # https://mavlink.io/en/mavgen_python/#:~:text=Receiving%20Messages,-%E2%80%8B
+    def telemetry_loop(self):
+        """Runs continuously in the background to catch incoming data."""
+        print("DEBUG: Telemetry listener thread started.")
+
+        while True:
+            
+            if self.is_uploading:
+                time.sleep(0.1)
+                continue
+
+            # Grab the next message. 
+            # Timeout ensures it doesn't freeze if the drone disconnects.
+            msg = self.drone.recv_match(blocking=True, timeout=0.1)
+            if not msg or msg.get_type() == 'BAD_DATA':
+                continue
+
+            msg_type = msg.get_type()
+
+            # Catch GPS and Altitude
+            if msg_type == 'GLOBAL_POSITION_INT':
+                # ArduPilot sends coordinates as giant integers (e.g., 367468422). 
+                # Divide by 1e7 to get standard decimal degrees (36.7468422).
+                self.telemetry["lat"] = msg.lat / 1e7
+                self.telemetry["lon"] = msg.lon / 1e7
+                # Altitude is in millimeters, divide by 1000 for meters
+                self.telemetry["alt"] = msg.relative_alt / 1000.0
+                # Heading is sent in centidegrees (e.g., 9000 = 90 degrees)
+                self.telemetry["heading"] = msg.hdg / 100.0
+
+            elif msg_type == 'VFR_HUD':
+                self.telemetry["speed"] = msg.groundspeed
+
+            # Catch Battery Percentage
+            elif msg_type == 'SYS_STATUS':
+                self.telemetry["battery"] = msg.battery_remaining
+
+            # Catch Armed Status and Flight Mode
+            elif msg_type == 'HEARTBEAT':
+                # Bitwise check to see if the motors are armed
+                self.telemetry["armed"] = (msg.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED) != 0
+                self.telemetry["mode"] = mavutil.mode_string_v10(msg)
 
     def send_command(self, command: int, params: list):
         """Sends a command to the drone"""
@@ -147,7 +214,7 @@ class DroneBridge:
         ]
         self.send_command(mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM, parameters)
 
-    def takeoff(self):
+    def takeoff(self, altitude_m: float = 15.0):
         """Tells the drone to takeoff."""
         print("DEBUG: Taking off...")
 
@@ -158,7 +225,7 @@ class DroneBridge:
             0, # Param 4: Yaw angle
             0, # Param 5: Latitude
             0, # Param 6: Longitude
-            15, # Param 7: Altitude
+            altitude_m, # Param 7: Altitude
         ]
 
         self.send_command(mavutil.mavlink.MAV_CMD_NAV_TAKEOFF, parameters)
@@ -181,9 +248,79 @@ class DroneBridge:
         """Commands the drone to return to its launch point."""
         self.set_mode('RTL')
 
-    def activate_mission(self, waypoints, plan_id):
-        """Placeholder for the waypoint logic"""
-        print(f"DEBUG: Preparing to send {len(waypoints)} waypoints to drone...")
+    # https://mavlink.io/en/services/mission.html#:~:text=Upload%20a%20Mission%20to%20the%20Vehicle
+    def activate_mission(self, waypoints: list, plan_id: str):
+        """Uploads a list of waypoints to the drone using the MAVLink handshake."""
+
+        wp_count = len(waypoints)
+        print(f"DEBUG: Preparing to upload {wp_count} waypoints for plan {plan_id}...")
+
+        if wp_count == 0:
+            print("ERROR: No waypoints to upload.")
+            return False
+
+        self.is_uploading = True
+
+        try: 
+            # Clearing missions: https://mavlink.io/en/services/mission.html#:~:text=Clear%20Missions,-%E2%80%8B
+            # https://mavlink.io/en/messages/common.html#mav_commands:~:text=MISSION%5FCLEAR%5FALL
+            print("DEBUG: Clearing old mission from drone memory...")
+            self.drone.mav.mission_clear_all_send(
+                self.drone.target_system, # Network ID of the drone
+                self.drone.target_component, # Which hardware piece executes this (usually 1 for Flight Controller)
+            )
+            self.drone.recv_match(type='MISSION_ACK', blocking=True, timeout=5)
+
+            # Telling the drone how many waypoints to expect
+            print(f"DEBUG: Informing drone to expect {wp_count} waypoints...")
+            self.drone.mav.mission_count_send(
+                self.drone.target_system, 
+                self.drone.target_component, 
+                wp_count
+            )
+
+            for i in range(wp_count):
+
+                msg = self.drone.recv_match(type=['MISSION_REQUEST_INT', 'MISSION_REQUEST'], blocking=True, timeout=5)
+                
+                if not msg:
+                    print(f"ERROR: Drone stopped responding during upload at waypoint {i}")
+                    return False
+                
+                # The drone tells us exactly which waypoint it wants right now
+                seq = msg.seq 
+                wp = waypoints[seq]
+                
+                print(f"DEBUG: Drone requested waypoint {seq}. Sending...")
+
+                # Uploading a mission to drone
+                #https://mavlink.io/en/messages/common.html#MISSION_ITEM_INT:~:text=MISSION%5FITEM%5FINT,-%2873
+                # https://mavlink.io/en/services/mission.html#:~:text=Upload%20a%20Mission%20to%20the%20Vehicle
+                self.drone.mav.mission_item_int_send(
+                    self.drone.target_system,
+                    self.drone.target_component,
+                    seq,                                               # Sequence number
+                    mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT, # Frame: Relative to home altitude
+                    mavutil.mavlink.MAV_CMD_NAV_WAYPOINT,              # Command: Fly to coordinate
+                    0,                                                 # Current (0 = false)
+                    1,                                                 # Autocontinue (1 = true)
+                    0, 0, 0, 0,                                        # Params 1-4 extra stuff
+                    int(wp.latitude * 1e7),                            # X: Latitude (Scaled integer)
+                    int(wp.longitude * 1e7),                           # Y: Longitude (Scaled integer)
+                    float(wp.altitude)                                 # Z: Altitude (Meters)
+                )
+
+            ack = self.drone.recv_match(type='MISSION_ACK', blocking=True, timeout=5)
+            
+            if ack and ack.type == mavutil.mavlink.MAV_MISSION_ACCEPTED:
+                print("DEBUG: Mission upload handshake COMPLETE!")
+                return True
+            else:
+                print(f"ERROR: Mission upload failed or rejected by drone. ACK: {ack}")
+                return False
+            
+        finally:
+            self.is_uploading = False
 
 # Instantiate a single global bridge object to use in the routers
 drone_bridge = DroneBridge()
@@ -214,12 +351,53 @@ if __name__ == "__main__":
 
     print("Starting Flight Tests")
     print("Taking off to 15 meters...")
-    drone_bridge.takeoff()
+    drone_bridge.takeoff(15)
 
     print("Climbing... waiting 10 seconds...")
     time.sleep(10)
 
     print("Landing...")
     drone_bridge.land()
+
+    class DummyWaypoint:
+        def __init__(self, lat, lon, alt):
+            self.latitude = lat
+            self.longitude = lon
+            self.altitude = alt
+
+    test_waypoints = [
+        DummyWaypoint(36.738500, -119.787125, 20.0), # Point 1: Fly North
+        DummyWaypoint(36.738500, -119.786000, 20.0), # Point 2: Fly East
+        DummyWaypoint(36.737797, -119.786000, 20.0)  # Point 3: Fly South
+    ]
+
+    upload_success = drone_bridge.activate_mission(test_waypoints, plan_id="FRESNO_TEST")
+
+    if upload_success:
+        print("PRE-FLIGHT SEQUENCE")
+        drone_bridge.set_mode('GUIDED')
+        time.sleep(2)
+        
+        drone_bridge.arm()
+        time.sleep(2)
+        
+        # Take off to 20 meters
+        drone_bridge.takeoff(20.0) 
+        
+        print("Climbing to altitude... waiting 10 seconds...")
+        time.sleep(10)
+        
+        print("STARTING AUTONOMOUS ROUTE...")
+        drone_bridge.start_mission() 
+
+        print("Monitoring Telemetry:")
+        for _ in range(15): # Monitor for 30 seconds
+            live = drone_bridge.telemetry
+            print(f"Lat: {live['lat']:.6f} | Lon: {live['lon']:.6f} | Alt: {live['alt']:.1f}m | Speed: {live['speed']:.1f} m/s | Heading: {live['heading']:.0f}°")
+            time.sleep(2)
+            
+        print("RETURNING HOME")
+        drone_bridge.return_to_home() # Switches to RTL mode
+        time.sleep(5)
     
     print("Tests Done")

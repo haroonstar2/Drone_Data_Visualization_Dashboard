@@ -1,5 +1,6 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from ..simulator import run_telemetry_loop
+# from ..simulator import run_telemetry_loop
+from ..telemetry_stream import run_telemetry_loop
 
 router = APIRouter()
 
