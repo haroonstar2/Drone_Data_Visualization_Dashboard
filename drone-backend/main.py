@@ -5,6 +5,7 @@
 # source ~/ardupilot/venv/bin/activate
 # ~/ardupilot/Tools/autotest/sim_vehicle.py -v ArduCopter
 # This variation puts the drone in Fresno sim_vehicle.py -v ArduCopter -l 36.737797,-119.787125,0,0
+# # ~/ardupilot/Tools/autotest/sim_vehicle.py -v ArduCopter -l 36.737797,-119.787125,0,0
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware # Allows the frontend to make requests to the backend

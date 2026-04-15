@@ -7,6 +7,8 @@ class CommandPayload(BaseModel):
     # Use Field alias so frontend can send camelCase "hoverDuration"
     hover_duration: int | None = Field(default=None, alias="hoverDuration")
     flight_plan_id: str | None = Field(default=None, alias="flightPlanId")
+    home_lat: float | None = None
+    home_lon: float | None = None
 
 # Wrapper specifically for commands
 class CommandWrapper(BaseModel):

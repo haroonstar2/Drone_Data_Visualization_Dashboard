@@ -11,7 +11,7 @@ async def run_telemetry_loop(websocket: WebSocket):
 
     with Session(engine) as session:
         mission_id = str(uuid.uuid4())
-        start_time = datetime.datetime.now()
+        start_time = datetime.datetime.now().isoformat()
         tick_count = 0
         
         # Fake weather for UI testing
@@ -23,12 +23,12 @@ async def run_telemetry_loop(websocket: WebSocket):
             while True:
 
                 live_data = drone_bridge.telemetry
-                print(f"Telemetry Loop: {live_data}")
+                # print(f"Telemetry Loop: {live_data}")
                 
                 # HIGH FREQUENCY TELEMETRY (Every tick: 0.1s)
                 telemetry_packet = {
                     "type": "TELEMETRY_UPDATE",
-                    "timestamp": datetime.datetime.now().isoformat(),
+                    "timestamp": start_time,
                     "payload": {
                         "latitude": live_data["lat"],       
                         "longitude": live_data["lon"],

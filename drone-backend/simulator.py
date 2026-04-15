@@ -151,7 +151,6 @@ class DroneSimulator:
                 self.pending_logs.append(("WARN", "Geofence breached! Triggering RTH."))
                 self.return_to_home()
 
-        
     def haversine(self, lat1, lon1, lat2, lon2):
         # This function was taken from GeeksforGeeks
         # https://www.geeksforgeeks.org/dsa/haversine-formula-to-find-distance-between-two-points-on-a-sphere/#
@@ -201,7 +200,6 @@ async def run_telemetry_loop(websocket):
                 session.commit()
                 mission_created_in_db = True
                 print(f"Mission {mission_id} persisted to DB (Active session confirmed).")
-
         
         # Environment state (slow updates)
         wind_speed = 5.0

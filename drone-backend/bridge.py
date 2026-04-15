@@ -237,8 +237,17 @@ class DroneBridge:
         print("DEBUG: Mission started (AUTO mode)")
 
     def pause_mission(self):
-            """Stops the drone in place."""
-            self.set_mode('LOITER')
+        """Stops the drone in place."""
+        self.set_mode('LOITER')
+
+    def clear_mission(self):
+        """Wipes the flight plan from the drone's memory."""
+        print("DEBUG: Wiping drone mission memory...")
+        self.drone.mav.mission_clear_all_send(
+            self.drone.target_system, 
+            self.drone.target_component
+        )
+
 
     def land(self):
         """Commands the drone to land exactly where it is."""
@@ -249,15 +258,16 @@ class DroneBridge:
         self.set_mode('RTL')
 
     # https://mavlink.io/en/services/mission.html#:~:text=Upload%20a%20Mission%20to%20the%20Vehicle
-    def activate_mission(self, waypoints: list, plan_id: str):
+    def activate_mission(self, waypoints: list, plan_id: str, home_lat: float, home_lon: float):
         """Uploads a list of waypoints to the drone using the MAVLink handshake."""
 
-        wp_count = len(waypoints)
-        print(f"DEBUG: Preparing to upload {wp_count} waypoints for plan {plan_id}...")
-
-        if wp_count == 0:
+        if len(waypoints) == 0:
             print("ERROR: No waypoints to upload.")
             return False
+        
+        # Home waypoint at start and RTL at end
+        wp_count = len(waypoints) + 2
+        print(f"DEBUG: Preparing to upload {wp_count} waypoints for plan {plan_id}...")
 
         self.is_uploading = True
 
@@ -288,27 +298,52 @@ class DroneBridge:
                     return False
                 
                 # The drone tells us exactly which waypoint it wants right now
+                # Sequence 0 is a new home waypoint. Sequence 1+ are the flight plan
                 seq = msg.seq 
-                wp = waypoints[seq]
-                
                 print(f"DEBUG: Drone requested waypoint {seq}. Sending...")
 
                 # Uploading a mission to drone
                 #https://mavlink.io/en/messages/common.html#MISSION_ITEM_INT:~:text=MISSION%5FITEM%5FINT,-%2873
                 # https://mavlink.io/en/services/mission.html#:~:text=Upload%20a%20Mission%20to%20the%20Vehicle
-                self.drone.mav.mission_item_int_send(
-                    self.drone.target_system,
-                    self.drone.target_component,
-                    seq,                                               # Sequence number
-                    mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT, # Frame: Relative to home altitude
-                    mavutil.mavlink.MAV_CMD_NAV_WAYPOINT,              # Command: Fly to coordinate
-                    0,                                                 # Current (0 = false)
-                    1,                                                 # Autocontinue (1 = true)
-                    0, 0, 0, 0,                                        # Params 1-4 extra stuff
-                    int(wp.latitude * 1e7),                            # X: Latitude (Scaled integer)
-                    int(wp.longitude * 1e7),                           # Y: Longitude (Scaled integer)
-                    float(wp.altitude)                                 # Z: Altitude (Meters)
-                )
+                if seq == 0:
+                    print(f"DEBUG: Drone requested seq 0. Setting Home to {home_lat}, {home_lon}")
+                    self.drone.mav.mission_item_int_send(
+                        self.drone.target_system, self.drone.target_component, seq,                                               
+                        mavutil.mavlink.MAV_FRAME_GLOBAL, # Home is an absolute global frame
+                        mavutil.mavlink.MAV_CMD_NAV_WAYPOINT,              
+                        0, 1, 0, 0, 0, 0,                                        
+                        int(home_lat * 1e7), 
+                        int(home_lon * 1e7), 
+                        0.0 # Ground level
+                    )
+
+                elif seq == wp_count - 1:
+                    print(f"DEBUG: Drone requested seq {seq}. Appending automatic RTL command.")
+                    self.drone.mav.mission_item_int_send(
+                        self.drone.target_system, self.drone.target_component, seq,                                               
+                        mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT, 
+                        mavutil.mavlink.MAV_CMD_NAV_RETURN_TO_LAUNCH, # The MAVLink command to go home!
+                        0, 1, 0, 0, 0, 0,                                        
+                        0, 0, 0.0 # Coordinates are ignored for RTL, it just uses Sequence 0
+                    )
+
+                else:
+                    wp = waypoints[seq - 1] 
+                    print(f"DEBUG: Sending flight plan item {seq - 1}...")
+                    self.drone.mav.mission_item_int_send(
+                        self.drone.target_system,
+                        self.drone.target_component,
+                        seq,                                               # Sequence number
+                        mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT, # Frame: Relative to home altitude
+                        mavutil.mavlink.MAV_CMD_NAV_WAYPOINT,              # Command: Fly to coordinate
+                        0,                                                 # Current (0 = false)
+                        1,                                                 # Autocontinue (1 = true)
+                        0, 0, 0, 0,                                        # Params 1-4 extra stuff
+                        int(wp.latitude * 1e7),                            # X: Latitude (Scaled integer)
+                        int(wp.longitude * 1e7),                           # Y: Longitude (Scaled integer)
+                        float(wp.altitude)                                 # Z: Altitude (Meters)
+                    )
+                
 
             ack = self.drone.recv_match(type='MISSION_ACK', blocking=True, timeout=5)
             
@@ -371,7 +406,12 @@ if __name__ == "__main__":
         DummyWaypoint(36.737797, -119.786000, 20.0)  # Point 3: Fly South
     ]
 
-    upload_success = drone_bridge.activate_mission(test_waypoints, plan_id="FRESNO_TEST")
+    upload_success = drone_bridge.activate_mission(
+        test_waypoints, 
+        plan_id="FRESNO_TEST",
+        home_lat=36.737797,  
+        home_lon=-119.787125 
+    )
 
     if upload_success:
         print("PRE-FLIGHT SEQUENCE")
