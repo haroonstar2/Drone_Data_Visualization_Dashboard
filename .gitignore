@@ -24,5 +24,12 @@ dist-ssr
 *.sw?
 
 .env
+.env.*
 venv/
 __pycache__/
+*.py[cod]
+.vite
+
+*mav*
+*.DAT
+*.bin

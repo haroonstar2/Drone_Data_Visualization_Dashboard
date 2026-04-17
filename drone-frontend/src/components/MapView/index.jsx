@@ -1,8 +1,8 @@
 import './MapView.css';
-import { useEffect, useRef } from 'react';
 import { useDroneStore } from '../../store'; 
-import { sendCommand } from '../../services/MockAPI'; 
-import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents, CircleMarker } from 'react-leaflet';
+import { useMemo, useRef } from 'react';
+import { sendCommand } from '../../services/RealAPI'; 
+import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents, CircleMarker, Polyline } from 'react-leaflet';
 import L from 'leaflet';
 import { WAYPOINT_ACTIONS, ACTION_OPTIONS } from '../waypointActions';
 
@@ -14,16 +14,6 @@ const customDroneIcon = L.icon({
   iconAnchor: [16, 32],    // Point of the icon which will correspond to marker's location (center-bottom for a pointer)
   popupAnchor: [0, -32]    // Point from which the popup should open relative to the iconAnchor
 });
-
-// Component to make the map follow the drone
-function MapFollower({ position }) {
-  const map = useMap(); // Get the map instance
-  useEffect(() => {
-    map.setView(position, map.getZoom()); // Pan the map to the new position
-  }, [position, map]); // Re-run when position changes
-  
-  return null;
-}
 
 function MapClickHandler({ onMapClick }) {
   // Hook listens for map events
@@ -45,11 +35,11 @@ function MapView() {
   const addWaypoint = useDroneStore((state) => state.addWaypoint);
   const removeWaypoint = useDroneStore((state) => state.removeWaypoint);
   const updateWaypoint = useDroneStore((state) => state.updateWaypoint);
+  const updateWaypointPosition = useDroneStore((state) => state.updateWaypointPosition);
 
   const settings = useDroneStore((state) => state.settings);
   const dronePosition = [telemetry.latitude, telemetry.longitude];
 
-  // This is a simple mock for getting map coordinates from a click
   const handleMapClick = async (e) => {
     if (appMode !== 'adding_waypoint') {
       return;
@@ -64,34 +54,63 @@ function MapView() {
       id: tempId, // Use the temp ID
       latitude: Number(lat.toFixed(6)),
       longitude: Number(lng.toFixed(6)),
-      altitude: 100
+      altitude: 100,
+      action: WAYPOINT_ACTIONS.PASS_THROUGH,
     };
 
     // Add the marker to the map immediately, before the API call
     addWaypoint(newWaypoint);
 
-    console.log('[MOCK API] Sending NEW_WAYPOINT command with payload:', newWaypoint);
+    console.log('[Real API] Sending ADD_WAYPOINT command with payload:', newWaypoint);
     try {
       const response = await sendCommand('ADD_WAYPOINT', newWaypoint);
     } catch (error) {
 
       // Roll back the marker we just added
       removeWaypoint(tempId);       
-      alert('Error: Failed to add waypoint. Please try again.');
+      alert(`Error: Failed to add waypoint: ${error}`);
     } 
   };
   
+  const handleRemove = async (waypointId) => {
+
+    console.log("Attempting to remove waypoint ID:", waypointId);
+
+    if (appMode !== 'PLANNING') {
+      return;
+    }
+
+    const payload = { id: waypointId }
+
+    try {
+      const response = await sendCommand('REMOVE_WAYPOINT', payload);
+      console.log("Backend confirmed removal.");
+
+      removeWaypoint(waypointId);
+
+    } catch (error) {
+      console.error(`Error: Failed to remove waypoint: ${error}`);
+      alert(`Error: Failed to remove waypoint. Check network connection.`);
+    }
+  }
+
+  const handleDrag = (id, e) => {
+        const marker = e.target;
+        const newPos = marker.getLatLng();
+        console.log(`Waypoint ${id} moved to:`, newPos);
+        
+        // Update the store
+        updateWaypointPosition(id, newPos.lat, newPos.lng);
+  };
+
   const mapClassName = `map-view ${appMode === 'adding_waypoint' ? 'crosshair-cursor' : ''}`;
   const isPlanningMode = appMode === 'PLANNING' || appMode === 'adding_waypoint';
-  
+  const flightPath = activeWaypoints.map(wp => [wp.latitude, wp.longitude]);
+
+
   return (
     <div className={mapClassName}>
-      
-      {/* Show a prompt when in adding mode */}
-      {isPlanningMode && (
-        <div className="map-prompt">Click on the map to add a waypoint...</div>
-      )}
-      
+            
       <MapContainer 
         center={dronePosition} 
         zoom={17} 
@@ -134,6 +153,8 @@ function MapView() {
         <Marker 
           key={wp.id} // Use the unique ID for the key
           position={[wp.latitude, wp.longitude]}
+          draggable={appMode === 'PLANNING' || appMode === 'adding_waypoint'}
+          eventHandlers={{drag: (e) => handleDrag(wp.id, e)}}
          >
           <Popup>
 
@@ -176,8 +197,10 @@ function MapView() {
                             // Ensure value is a positive integer
                             const val = parseInt(e.target.value, 10);
                             if (!isNaN(val) && val > 0) {
-                               updateWaypoint(wp.id, { hoverDuration: val });
+                               updateWaypoint(wp.id, { hoverDuration: val });              
                             }
+
+
                           }}
                         />
                       </div>
@@ -186,7 +209,7 @@ function MapView() {
                     {/* Delete Button */}
                     <button 
                         className="btn-delete-wp"
-                        onClick={() => removeWaypoint(wp.id)}
+                        onClick={() => handleRemove(wp.id)}
                     >
                         Delete Waypoint
                     </button>
@@ -200,6 +223,13 @@ function MapView() {
           </Popup>
         </Marker>
       ))}
+
+      {activeWaypoints.length > 1 && (
+        <Polyline 
+            positions={flightPath} 
+            color="blue" 
+        />
+      )}
 
 
       {/* <div className="map-overlay">

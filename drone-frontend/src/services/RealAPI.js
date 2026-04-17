@@ -1,4 +1,4 @@
-const API_BASE_URL = '/api';
+const API_BASE_URL = '/api/v1';
 
 /*
 Generic helper function for making fetch requests.
@@ -18,10 +18,11 @@ async function request(endpoint, options = {}) {
       ...defaultHeaders,
       ...options.headers,
     },
-  };
+  };  
 
   console.log(`[RealAPI] ${config.method || 'GET'} request to: ${API_BASE_URL}${endpoint}`);
-
+  console.log(`[RealAPI] Request body: ${config.body}`);
+  
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
 
@@ -46,15 +47,20 @@ async function request(endpoint, options = {}) {
   }
 }
 
-// Commands & Settings
-export const sendCommand = (commandName, payload = {}) => {
-  return request('/commands', {
+export const sendCommand = (commandName, commandData = {}) => {
+  const payload = {
+    name: commandName,
+    ...commandData,
+    // Map frontend "hover_duration" to the expected "hoverDuration" alias, if it exists
+    ...(commandData.hover_duration && { hoverDuration: commandData.hover_duration })
+  };
+
+  console.log(payload);
+  
+  return request('/command', {
     method: 'POST',
     body: JSON.stringify({
-      command: {
-        type: 'COMMAND',
-        payload: { name: commandName, ...payload }
-      }
+      command: payload
     }),
   });
 };
@@ -72,18 +78,23 @@ export const saveSettings = (newSettings) => {
 
 // Flight Plans 
 export const getPlanList = () => {
-  return request('/flight-plans', { method: 'GET' });
+  return request('/plans', { method: 'GET' });
 };
 
 export const getPlanDetails = (planId) => {
   // Insert the ID into the URL path
-  return request(`/flight-plans/${planId}`, { method: 'GET' });
+  return request(`/plans/${planId}`, { method: 'GET' });
 };
 
 export const saveFlightPlan = (planData) => {
-  return request('/flight-plans', {
+  
+  const wrappedBody = {
+    plan: planData
+  };
+
+  return request('/plans', {
     method: 'POST',
-    body: JSON.stringify(planData),
+    body: JSON.stringify(wrappedBody),
   });
 };
 
@@ -94,13 +105,144 @@ export const getMissionHistory = () => {
 
 export const getMissionLogs = (missionId) => {
   // Insert the ID into the URL path
-  return request(`/missions/${missionId}/logs`, { method: 'GET' });
+  return request(`/missions/${missionId}`, { method: 'GET' });
 };
 
-//  PLACEHOLDERS FOR REAL-TIME (WEBSOCKETS)
+export const startSimulation = (actions) => {
 
-export const startSimulation = () => {
-  console.warn("[RealAPI] startSimulation called, but real-time data requires WebSockets implementation.");
-  // This would return the WebSocket connection object or cleanup function.
-  return null;
+  const host = window.location.host;
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const WS_FULL_URL = `${protocol}//${host}/ws/telemetry`;
+
+  const { updateTelemetry, addMissionLog, updateEnvironment, updateStatus } = actions;
+  
+  // Flag to stop reconnection if component unmount
+  // Variables to manage connection state
+  let socket = null;
+  let reconnectTimeout = null;
+  let isClosed = false;
+
+  const connect = () => {
+
+    if (isClosed) return false;
+
+    console.log(`[RealAPI] Connecting to WebSocket: ${WS_FULL_URL}`);
+    socket = new WebSocket(WS_FULL_URL);
+
+    socket.onopen = () => {
+      console.log('[RealAPI] WebSocket Connected.');
+      addMissionLog({ timestamp: new Date().toISOString(), level: 'INFO', message: 'Connected to live stream.' });
+    };
+
+    socket.onmessage = (event) => {
+      try {
+          const message = JSON.parse(event.data);
+
+          // Switch based on the "type" header sent from backend
+          switch (message.type) {
+              case 'TELEMETRY_UPDATE':
+                  // Payload is { latitude, longitude, altitude, ... }
+                  updateTelemetry(message.payload);
+                  break;
+              
+              case 'ENVIRONMENT_UPDATE':
+                  // Payload is { windSpeed, temperature, ... }
+                  updateEnvironment(message.payload);
+                  break;
+
+              case 'NEW_LOG':
+                  // Payload is { timestamp, level, message }
+                  addMissionLog(message.payload);
+                  break;
+
+              case 'STATUS_UPDATE':
+                  // Payload is { armed, mode, health }
+                  updateStatus(message.payload);
+                  break;
+              default:
+                  console.warn('[RealAPI] Unknown message type:', message.type);
+          }
+
+      } catch (err) {
+          console.error('[RealAPI] Message parse error:', err);
+      }
+    }
+
+  socket.onclose = () => {
+
+    if (isClosed) {
+      console.log(`[RealAPI] WebSocket intentionally disconnected.`);
+      return;
+    }
+
+    console.warn(`[RealAPI] WebSocket disconnected. Retrying in 3 seconds...`);
+
+    reconnectTimeout = setTimeout(() => {
+      connect();
+    }, 3000);
+
+  };
+  };
+
+  connect();
+
+  return () => {
+      isClosed = true; // Stop the loop
+      if (reconnectTimeout) clearTimeout(reconnectTimeout); // Cancel pending retries
+      if (socket) socket.close(); // Close active connection
+  };
 };
+
+
+  // console.log(`[RealAPI] Connecting to WebSocket: ${WS_FULL_URL}`);
+  // const socket = new WebSocket(WS_FULL_URL);
+
+  // socket.onopen = () => {
+  //   console.log('[RealAPI] WebSocket Connected.');
+  //   addMissionLog({ timestamp: new Date().toISOString(), level: 'INFO', message: 'Connected to live stream.' });
+  // };
+
+  // socket.onmessage = (event) => {
+  //   try {
+  //       const message = JSON.parse(event.data);
+
+  //       // Switch based on the "type" header sent from Python
+  //       switch (message.type) {
+  //           case 'TELEMETRY_UPDATE':
+  //               // Payload is { latitude, longitude, altitude, ... }
+  //               updateTelemetry(message.payload);
+  //               break;
+            
+  //           case 'ENVIRONMENT_UPDATE':
+  //                // Payload is { windSpeed, temperature, ... }
+  //                updateEnvironment(message.payload);
+  //                break;
+
+  //           case 'NEW_LOG':
+  //               // Payload is { timestamp, level, message }
+  //               addMissionLog(message.payload);
+  //               break;
+
+  //           case 'STATUS_UPDATE':
+  //               // Payload is { armed, mode, health }
+  //               updateStatus(message.payload);
+  //               break;
+  //           default:
+  //               console.warn('[RealAPI] Unknown message type:', message.type);
+  //       }
+
+  //   } catch (err) {
+  //       console.error('[RealAPI] Message parse error:', err);
+  //   }
+  // };
+
+  // socket.onclose = () => {
+  //   console.log(`[RealAPI] WebSocket disconnected.`);
+  // };
+
+  // // Cleanup function
+  // return () => {
+  //     if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+  //         socket.close();
+  //     }
+  // };

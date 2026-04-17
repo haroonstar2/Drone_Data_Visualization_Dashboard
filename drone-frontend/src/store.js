@@ -17,7 +17,8 @@ export const useDroneStore = create((set) => ({
     },
     settings: {
         system: {units: "metric", mapDisplay: "satellite", storeLog: true},
-        drone: {rthAltitude: 100, 
+        drone: {
+            rthAltitude: 100, 
             geofenceEnabled: true,
             homeLatitude: 36.737797,
             homeLongitude: -119.787125
@@ -31,7 +32,10 @@ export const useDroneStore = create((set) => ({
     },
     appMode: 'idle',
     activeWaypoints: [],
-    savedFlightPlans: {},
+    planId: null,
+    planName: "",
+    planDescription: "",
+    isFlying: false,
 
     updateTelemetry: (newTelemetryData) => set((state) => ({
         telemetry: {
@@ -44,7 +48,8 @@ export const useDroneStore = create((set) => ({
         droneStatus: {
             ...state.droneStatus,
             ...newStatusData
-        }
+        },
+        isFlying: Boolean(newStatusData.armed)
     })),
 
     updateSettings: (newSettings) => set((state) => ({
@@ -93,6 +98,16 @@ export const useDroneStore = create((set) => ({
         )
     })),
 
+    updateWaypointPosition: (id, newLat, newLng) => set((state) => ({
+        activeWaypoints: state.activeWaypoints.map((wp) => 
+        // If ID matches, create a new object with updated lat/lon
+        // If not, keep the waypoint as is
+        wp.id === id 
+            ? { ...wp, latitude: newLat, longitude: newLng } 
+            : wp
+        )
+     })),
+
     removeWaypoint: (waypointId) => set((state) => ({
         activeWaypoints: state.activeWaypoints.filter(wp => wp.id !== waypointId)
     })),
@@ -101,11 +116,16 @@ export const useDroneStore = create((set) => ({
 
     clearWaypoints: () => set({ activeWaypoints: [] }),
 
-    saveFullFlightPlan: (fullPlanData) => set((state) => ({
-    savedFlightPlans: {
-      ...state.savedFlightPlans,
-      [fullPlanData.id]: fullPlanData // Use ID as key for fast lookup
-    }
-  })),
+    setEditingPlan: (id, name, description) => set({ 
+        planId: id, 
+        planName: name, 
+        planDescription: description 
+    }),
+
+    clearEditingPlan: () => set({ 
+        planId: null, 
+        planName: "", 
+        planDescription: "" 
+    }),
 
 }));

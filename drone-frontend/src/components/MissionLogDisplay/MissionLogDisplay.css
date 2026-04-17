@@ -1,19 +1,19 @@
-/* src/components/MissionLogDisplay/MissionLogDisplay.css */
 .mission-log-display {
-  background-color: #263238; /* Dark background */
+  background-color: #263238; 
   color: #ECEFF1;
   padding: 10px;
   margin: 10px;
   flex-grow: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* Handle scroll inside log-list */
+  overflow: hidden; 
 
   display: flex;
   flex-direction: column;
   flex-grow: 1; 
   
   min-height: 0; 
+  max-height: 35%;
   overflow: hidden; 
 
 }

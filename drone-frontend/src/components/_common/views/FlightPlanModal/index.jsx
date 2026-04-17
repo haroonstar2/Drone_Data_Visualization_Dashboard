@@ -1,52 +1,74 @@
-import { sendCommand } from "../../../../services/MockAPI";
+import { sendCommand } from "../../../../services/RealAPI";
+import { useDroneStore } from "../../../../store";
 
 export function FlightPlanListView({ item, onClick }) {
-    return (
-        <div className="plan-item" onClick={onClick}>
-            <div>
-                <strong>{item.name}</strong>
-                <small> {item.lastModified ? ` (Last modified: ${new Date(item.lastModified).toLocaleDateString()})` : ''}</small>
-            </div>
-            <small>{item.waypointCount} waypoints</small>
-        </div>
-    );
+  return (
+    <div className="plan-item" onClick={onClick}>
+      <div>
+        <strong>{item.name}</strong>
+        <small>
+          {" "}
+          {item.lastModified
+            ? ` (Last modified: ${new Date(item.lastModified).toLocaleDateString()})`
+            : ""}
+        </small>
+      </div>
+      <small>{item.waypointCount} waypoints</small>
+    </div>
+  );
 }
 
-export function FlightPlanDetailView({ details, onConfirm}) {
+export function FlightPlanDetailView({
+  details,
+  onConfirm,
+  onActivate,
+  onClose,
+}) {
+  const settings = useDroneStore((state) => state.settings);
 
-    const handleActivate = async () => {
-        try {
-            console.log(`Activating plan: ${details.id}`);
+  const handleActivate = async () => {
+    try {
+      console.log(`Activating plan: ${details.id}`);
+      console.log("plan", details);
 
-            const response = await sendCommand('ACTIVATE_FLIGHT_PLAN', { 
-                flightPlanId: details.id 
-            });
-            
-            alert(response.message);
-            
-            onClose(); 
-        } 
-        catch (error) {
-            console.error('Failed to activate plan:', error);
-            alert('Failed to activate plan.');
-        }
-    };
+      const response = await sendCommand("ACTIVATE_FLIGHT_PLAN", {
+        flightPlanId: details.id,
+        home_lat: settings.drone.homeLatitude,
+        home_lon: settings.drone.homeLongitude,
+      });
 
-    if (!details) return null;
-    return (
-        <div>
-            <h3>{details.name}</h3>
-            <p>{details.description}</p>
-            <ul>
-                {details.waypoints.map((wp) => (
-                    <li key={wp.order}>
-                        WP {wp.order}: ({wp.latitude}, {wp.longitude}) @ {wp.altitude}m - Action: {wp.action}
-                    </li>
-                ))}
-            </ul>
-            <button className="btn-save" onClick={onConfirm}>
-                Edit / Load Plan
-            </button>
-        </div>
-    );
+      alert(response.message);
+
+      if (onActivate) {
+        onActivate(details);
+      }
+
+      onClose();
+    } catch (error) {
+      console.error("Failed to activate plan:", error);
+      alert("Failed to activate plan.");
+    }
+  };
+
+  if (!details) return null;
+  return (
+    <div>
+      <h3>{details.name}</h3>
+      <p>{details.description}</p>
+      <ul>
+        {details.waypoints.map((wp) => (
+          <li key={wp.order}>
+            WP {wp.order}: ({wp.latitude}, {wp.longitude}) @ {wp.altitude}m -
+            Action: {wp.action}
+          </li>
+        ))}
+      </ul>
+      <button className="btn-save" onClick={onConfirm}>
+        Edit Plan
+      </button>
+      <button className="btn btn-cancel" onClick={handleActivate}>
+        Activate
+      </button>
+    </div>
+  );
 }
